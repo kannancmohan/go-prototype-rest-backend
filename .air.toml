@@ -5,7 +5,7 @@ tmp_dir = "bin"
 [build]
   args_bin = []
   bin = "./bin/main"
-  cmd = "go build -o ./bin/main ./cmd/api/main.go"
+  cmd = "go build -o ./bin/main ./cmd/api"
   delay = 1000
   exclude_dir = ["assets", "bin", "vendor", "testdata", "web", "docs", "scripts"]
   exclude_file = []
@@ -21,7 +21,7 @@ tmp_dir = "bin"
   poll = false
   poll_interval = 0
   post_cmd = []
-  pre_cmd = []
+  #pre_cmd = ["make gen-docs"]
   rerun = false
   rerun_delay = 500
   send_interrupt = false
@@ -40,11 +40,6 @@ tmp_dir = "bin"
 
 [misc]
   clean_on_exit = false
-
-[proxy]
-  app_port = 0
-  enabled = false
-  proxy_port = 0
 
 [screen]
   clear_on_rebuild = false
