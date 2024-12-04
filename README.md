@@ -2,7 +2,10 @@
 A rest backend app build using golang 
 
 ## Tech Stack 
+
 golang : 1.22
+chi http router : github.com/go-chi/chi/v5
+
 
 ## Project Structure
 ```
@@ -39,12 +42,24 @@ rest-backend/
 ```
 ## Project setup 
 
-### Prerequisite 
-* golang (preinstalled via nix)
+### Project Prerequisite 
+* golang
+* delve - [optional] for debugging go projects
+* air - [optional] for hot/live reloading go projects
 
-### Initial setup
+### Project Initial setup
 
 #### Init the module 
 ```
 go mod init github.com/kannancmohan/go-prototype-rest-backend
 ```
+
+#### [optional] Init air for hot reloading
+```
+air init
+```
+adjust the generated '.air.toml' file to accommodate project specif changes
+
+### Project Build & Execution
+
+#### Project 

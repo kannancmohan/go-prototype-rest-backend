@@ -8,7 +8,8 @@ pkgs.mkShellNoCC {
         ## added for golang
         pkgs.go_1_22
         pkgs.go-migrate # for using go migration cli from https://github.com/golang-migrate/migrate
-        pkgs.delve # debugger for Go  
+        pkgs.delve # debugger for Go
+        pkgs.air # hot reload for Go
         pkgs.clang # added for vs-code Go extension to work
         pkgs.golangci-lint
     ] ++ (if pkgs.stdenv.isDarwin then [ 
