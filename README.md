@@ -19,7 +19,7 @@ rest-backend/
 │       └── migration/
 ├── internal/
 │   ├── common/
-│   │   ├── configs/
+│   │   ├── config/
 │   │   │   └── env.go
 │   │   └── db/
 │   │   │   └── db.go

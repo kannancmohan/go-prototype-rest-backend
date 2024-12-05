@@ -18,8 +18,8 @@ pkgs.mkShellNoCC {
 
     shellHook = ''
         ## Add environment variables
-        export GOROOT=${pkgs.go}/share/go
-        export GOPATH=$PWD
+        #export GOROOT=${pkgs.go}/share/go
+        #export GOPATH=$PWD
 
         ## Add command alias
         #alias k="kubectl"
