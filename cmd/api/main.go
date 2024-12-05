@@ -22,5 +22,5 @@ func main() {
 	}
 
 	app := api.NewAPI(db)
-	app.Run()
+	log.Fatal(app.Run())
 }

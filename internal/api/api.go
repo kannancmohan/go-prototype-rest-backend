@@ -2,6 +2,9 @@ package api
 
 import (
 	"database/sql"
+	"errors"
+	"net/http"
+	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/env"
@@ -40,6 +43,23 @@ func NewAPI(db *sql.DB) *Api {
 	}
 }
 
-func (api *Api) Run() {
+func (api *Api) Run() error {
+	routes := registerRouter()
+	srv := &http.Server{
+		Addr:         api.config.addr,
+		Handler:      routes,
+		WriteTimeout: time.Second * 30,
+		ReadTimeout:  time.Second * 10,
+		IdleTimeout:  time.Minute,
+	}
 
+	err := srv.ListenAndServe()
+	if !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
+}
+
+func registerRouter() http.Handler {
+	return nil
 }
