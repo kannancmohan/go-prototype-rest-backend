@@ -54,7 +54,6 @@ type UserStore struct {
 	db *sql.DB
 }
 
-
 func (s *UserStore) GetByID(ctx context.Context, userID int64) (*User, error) {
 	query := `
 		SELECT users.id, username, email, password, created_at, roles.*

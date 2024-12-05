@@ -24,7 +24,6 @@ type PostStore struct {
 	db *sql.DB
 }
 
-
 func (s *PostStore) GetByID(ctx context.Context, id int64) (*Post, error) {
 	query := `
 		SELECT id, user_id, title, content, created_at,  updated_at, tags, version
