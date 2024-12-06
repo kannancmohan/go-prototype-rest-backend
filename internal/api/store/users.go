@@ -50,11 +50,18 @@ func (p *password) Compare(text string) error {
 	return bcrypt.CompareHashAndPassword(p.hash, []byte(text))
 }
 
-type UserStore struct {
+type UserStore interface {
+	GetByID(context.Context, int64) (*User, error)
+}
+
+type userStore struct {
 	db *sql.DB
 }
 
-func (s *UserStore) GetByID(ctx context.Context, userID int64) (*User, error) {
+// Explicitly ensuring that userStore adheres to the UserStore interface
+var _ UserStore = (*userStore)(nil)
+
+func (s *userStore) GetByID(ctx context.Context, userID int64) (*User, error) {
 	query := `
 		SELECT users.id, username, email, password, created_at, roles.*
 		FROM users

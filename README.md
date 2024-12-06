@@ -38,6 +38,9 @@ rest-backend/
 │       └── ...
 ├── go.mod
 ├── go.sum
+├── Makefile
+├── README.md
+└── shell.nix #to spawn a shell environment with specific tools and dependencies
 
 ```
 ## Project setup 

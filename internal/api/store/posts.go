@@ -20,11 +20,17 @@ type Post struct {
 	User User `json:"user"`
 }
 
-type PostStore struct {
+type PostStore interface {
+	GetByID(context.Context, int64) (*Post, error)
+}
+type postStore struct {
 	db *sql.DB
 }
 
-func (s *PostStore) GetByID(ctx context.Context, id int64) (*Post, error) {
+// Explicitly ensuring that postStore adheres to the PostStore interface
+var _ PostStore = (*postStore)(nil)
+
+func (s *postStore) GetByID(ctx context.Context, id int64) (*Post, error) {
 	query := `
 		SELECT id, user_id, title, content, created_at,  updated_at, tags, version
 		FROM posts

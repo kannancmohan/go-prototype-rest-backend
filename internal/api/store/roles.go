@@ -12,11 +12,18 @@ type Role struct {
 	Level       int    `json:"level"`
 }
 
-type RoleStore struct {
+type RoleStore interface {
+	GetByName(context.Context, string) (*Role, error)
+}
+
+type roleStore struct {
 	db *sql.DB
 }
 
-func (s *RoleStore) GetByName(ctx context.Context, slug string) (*Role, error) {
+// Explicitly ensuring that roleStore adheres to the RoleStore interface
+var _ RoleStore = (*roleStore)(nil)
+
+func (s *roleStore) GetByName(ctx context.Context, slug string) (*Role, error) {
 	query := `SELECT id, name, description, level FROM roles WHERE name = $1`
 
 	role := &Role{}
