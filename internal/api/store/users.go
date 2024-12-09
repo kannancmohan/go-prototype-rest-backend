@@ -3,55 +3,12 @@ package store
 import (
 	"context"
 	"database/sql"
-	"log/slog"
 
-	"golang.org/x/crypto/bcrypt"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/model"
 )
 
-type User struct {
-	ID        int64    `json:"id"`
-	Username  string   `json:"username"`
-	Email     string   `json:"email"`
-	Password  password `json:"-"`
-	CreatedAt string   `json:"created_at"`
-	IsActive  bool     `json:"is_active"`
-	RoleID    int64    `json:"role_id"`
-	Role      Role     `json:"role"`
-}
-
-// implement the `LogValuer` interface so as to log only non-sensitive fields in User
-func (u User) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.Int64("id", u.ID),
-		slog.String("name", u.Username),
-		slog.String("email", u.Email),
-	)
-}
-
-// TODO move to common ?
-type password struct {
-	text *string
-	hash []byte
-}
-
-func (p *password) Set(text string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(text), bcrypt.DefaultCost)
-	if err != nil {
-		return err
-	}
-
-	p.text = &text
-	p.hash = hash
-
-	return nil
-}
-
-func (p *password) Compare(text string) error {
-	return bcrypt.CompareHashAndPassword(p.hash, []byte(text))
-}
-
 type UserStore interface {
-	GetByID(context.Context, int64) (*User, error)
+	GetByID(context.Context, int64) (*model.User, error)
 }
 
 type userStore struct {
@@ -61,7 +18,7 @@ type userStore struct {
 // Explicitly ensuring that userStore adheres to the UserStore interface
 var _ UserStore = (*userStore)(nil)
 
-func (s *userStore) GetByID(ctx context.Context, userID int64) (*User, error) {
+func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, error) {
 	query := `
 		SELECT users.id, username, email, password, created_at, roles.*
 		FROM users
@@ -72,7 +29,7 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*User, error) {
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()
 
-	user := &User{}
+	user := &model.User{}
 	err := s.db.QueryRowContext(
 		ctx,
 		query,
@@ -81,7 +38,7 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*User, error) {
 		&user.ID,
 		&user.Username,
 		&user.Email,
-		&user.Password.hash,
+		&user.Password.Hash,
 		&user.CreatedAt,
 		&user.Role.ID,
 		&user.Role.Name,

@@ -4,25 +4,27 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 )
 
 type UserHandler struct {
-	store store.UserStore
+	service service.UserService
 }
 
-func NewUserHandler(store store.UserStore) *UserHandler {
-	return &UserHandler{store: store}
+func NewUserHandler(service service.UserService) *UserHandler {
+	return &UserHandler{service: service}
 }
 
-func (handler *UserHandler) getUserHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64)
+func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
+	userID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64) //TODO
 	if err != nil {
 		badRequestResponse(w, r, err)
 		return
 	}
 
-	user, err := handler.store.GetByID(r.Context(), userID)
+	user, err := h.service.GetByID(r.Context(), userID)
 	if err != nil {
 		switch err {
 		case store.ErrNotFound:
@@ -36,5 +38,6 @@ func (handler *UserHandler) getUserHandler(w http.ResponseWriter, r *http.Reques
 
 	if err := jsonResponse(w, http.StatusOK, user); err != nil {
 		internalServerError(w, r, err)
+		return
 	}
 }

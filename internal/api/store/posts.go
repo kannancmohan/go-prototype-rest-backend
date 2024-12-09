@@ -4,24 +4,13 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/model"
 	"github.com/lib/pq"
 )
 
-type Post struct {
-	ID        int64    `json:"id"`
-	Content   string   `json:"content"`
-	Title     string   `json:"title"`
-	UserID    int64    `json:"user_id"`
-	Tags      []string `json:"tags"`
-	CreatedAt string   `json:"created_at"`
-	UpdatedAt string   `json:"updated_at"`
-	Version   int      `json:"version"`
-	//Comments  []Comment `json:"comments"`
-	User User `json:"user"`
-}
-
 type PostStore interface {
-	GetByID(context.Context, int64) (*Post, error)
+	GetByID(context.Context, int64) (*model.Post, error)
 }
 type postStore struct {
 	db *sql.DB
@@ -30,7 +19,7 @@ type postStore struct {
 // Explicitly ensuring that postStore adheres to the PostStore interface
 var _ PostStore = (*postStore)(nil)
 
-func (s *postStore) GetByID(ctx context.Context, id int64) (*Post, error) {
+func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) {
 	query := `
 		SELECT id, user_id, title, content, created_at,  updated_at, tags, version
 		FROM posts
@@ -40,7 +29,7 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*Post, error) {
 	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
 	defer cancel()
 
-	var post Post
+	var post model.Post
 	err := s.db.QueryRowContext(ctx, query, id).Scan(
 		&post.ID,
 		&post.UserID,

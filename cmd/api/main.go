@@ -21,6 +21,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	app := api.NewAPI(db)
-	log.Fatal(app.Run())
+	app := api.NewAPI()
+	log.Fatal(app.Run(db))
 }

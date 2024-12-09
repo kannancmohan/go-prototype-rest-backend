@@ -3,7 +3,21 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
 )
+
+type Handler struct {
+	UserHandler *UserHandler
+	PostHandler *PostHandler
+}
+
+func NewHandler(service service.Service) Handler {
+	return Handler{
+		UserHandler: NewUserHandler(service.UserService),
+		PostHandler: NewPostHandler(service.PostService),
+	}
+}
 
 func readJSON(w http.ResponseWriter, r *http.Request, data any) error {
 	maxBytes := 1_048_578 // 1mb

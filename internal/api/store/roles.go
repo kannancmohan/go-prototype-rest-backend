@@ -3,17 +3,12 @@ package store
 import (
 	"context"
 	"database/sql"
+
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/model"
 )
 
-type Role struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Level       int    `json:"level"`
-}
-
 type RoleStore interface {
-	GetByName(context.Context, string) (*Role, error)
+	GetByName(context.Context, string) (*model.Role, error)
 }
 
 type roleStore struct {
@@ -23,10 +18,10 @@ type roleStore struct {
 // Explicitly ensuring that roleStore adheres to the RoleStore interface
 var _ RoleStore = (*roleStore)(nil)
 
-func (s *roleStore) GetByName(ctx context.Context, slug string) (*Role, error) {
+func (s *roleStore) GetByName(ctx context.Context, slug string) (*model.Role, error) {
 	query := `SELECT id, name, description, level FROM roles WHERE name = $1`
 
-	role := &Role{}
+	role := &model.Role{}
 	err := s.db.QueryRowContext(ctx, query, slug).Scan(&role.ID, &role.Name, &role.Description, &role.Level)
 	if err != nil {
 		return nil, err

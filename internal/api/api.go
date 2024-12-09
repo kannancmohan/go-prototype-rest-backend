@@ -6,13 +6,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/env"
 )
 
 type Api struct {
 	config config
-	store  store.Storage
 	// store         store.Storage
 	// cacheStorage  cache.Storage
 	// logger        *zap.SugaredLogger
@@ -22,7 +23,8 @@ type Api struct {
 }
 
 type config struct {
-	addr string
+	addr              string
+	corsAllowedOrigin string
 	// db   db.DBConfig
 	// env         string
 	// apiURL      string
@@ -33,18 +35,22 @@ type config struct {
 	// rateLimiter ratelimiter.Config
 }
 
-func NewAPI(db *sql.DB) *Api {
-	store := store.NewStorage(db)
+func NewAPI() *Api {
 	return &Api{
 		config: config{
-			addr: env.GetString("ADDR", ":8080"),
+			addr:              env.GetString("ADDR", ":8080"),
+			corsAllowedOrigin: env.GetString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
 		},
-		store: store,
 	}
 }
 
-func (api *Api) Run() error {
-	routes := registerRouter()
+func (api *Api) Run(db *sql.DB) error {
+	store := store.NewStorage(db)
+	service := service.NewService(store)
+	handler := handler.NewHandler(service)
+
+	router := NewRouter(handler, api.config)
+	routes := router.registerHandlers()
 	srv := &http.Server{
 		Addr:         api.config.addr,
 		Handler:      routes,
@@ -57,9 +63,5 @@ func (api *Api) Run() error {
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-	return nil
-}
-
-func registerRouter() http.Handler {
 	return nil
 }
