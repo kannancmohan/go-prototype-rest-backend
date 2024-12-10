@@ -1,3 +1,5 @@
+MIGRATIONS_PATH = ./cmd/migrate/migrations
+
 gofmt:
 	@find . -type f -name '*.go' -not -path './vendor/*' -not -path './pkg/mod/*' -exec gofmt -s -w {} +
 
@@ -10,11 +12,11 @@ test:
 run: build
 	@./bin/rest-api
 
-migration: 
-	@migrate create -ext sql -dir cmd/migrate/migrations $(filter-out $@,$(MAKECMDGOALS))
+migration-create: 
+	@migrate create -seq -ext sql -dir $(MIGRATIONS_PATH) $(filter-out $@,$(MAKECMDGOALS))
 
 migration-up:
-	@go run cmd/migrate/main.go up
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(DB_ADDR) up
 
 migration-down:
-	@go run cmd/migrate/main.go down
+	@migrate -path=$(MIGRATIONS_PATH) -database=$(DB_ADDR) down $(filter-out $@,$(MAKECMDGOALS))

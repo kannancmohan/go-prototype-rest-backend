@@ -73,6 +73,23 @@ adjust the generated '.air.toml' file to accommodate project specif changes
      
      if you update the .envrc file on the fly, use command "direnv reload" to reload the env variables
 
+#### Project DB migration
+##### To add new migration file
+
+```
+make migration-create user_table
+```
+##### To migrate db
+
+```
+make migration-up
+```
+
+##### To revert db migration
+
+```
+make migration-down
+```
 
 ## Additional 
 
