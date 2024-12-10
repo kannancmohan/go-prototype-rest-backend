@@ -12,6 +12,8 @@ pkgs.mkShellNoCC {
         pkgs.air # hot reload for Go
         pkgs.clang # added for vs-code Go extension to work
         pkgs.golangci-lint
+        ## direnv for project/shell specific env variables(see .envrc file)
+        pkgs.direnv
     ] ++ (if pkgs.stdenv.isDarwin then [ 
         pkgs.darwin.iproute2mac pkgs.darwin.apple_sdk.frameworks.CoreFoundation 
     ] else []);
@@ -23,5 +25,13 @@ pkgs.mkShellNoCC {
 
         ## Add command alias
         #alias k="kubectl"
+
+        ### direnv ###
+        eval "$(direnv hook bash)"
+        if [ -f .envrc ]; then
+            export DIRENV_LOG_FORMAT="" #for disabling log output from direnv
+            echo ".envrc found. Allowing direnv..."
+            direnv allow .
+        fi
     '';
 }
