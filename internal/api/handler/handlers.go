@@ -4,8 +4,15 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
 )
+
+var validate *validator.Validate
+
+func init() {
+	validate = validator.New(validator.WithRequiredStructEnabled())
+}
 
 type Handler struct {
 	UserHandler *UserHandler

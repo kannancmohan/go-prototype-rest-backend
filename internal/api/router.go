@@ -43,7 +43,7 @@ func (rt *Router) registerHandlers() http.Handler {
 	// }
 	r.Use(middleware.Timeout(60 * time.Second))
 
-	r.Route("/v1", func(r chi.Router) {
+	r.Route("/api/v1", func(r chi.Router) {
 		// Operations
 		// r.Get("/health", app.healthCheckHandler)
 		// r.With(app.BasicAuthMiddleware()).Get("/debug/vars", expvar.Handler().ServeHTTP)
