@@ -12,17 +12,17 @@ import (
 
 type Router struct {
 	handler handler.Handler
-	config  config
+	config  Config
 }
 
-func NewRouter(handler handler.Handler, config config) *Router {
+func NewRouter(handler handler.Handler, config Config) *Router {
 	return &Router{
 		handler: handler,
 		config:  config,
 	}
 }
 
-func (rt *Router) registerHandlers() http.Handler {
+func (rt *Router) RegisterHandlers() http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)
@@ -30,7 +30,7 @@ func (rt *Router) registerHandlers() http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{rt.config.corsAllowedOrigin},
+		AllowedOrigins:   []string{rt.config.CorsAllowedOrigin},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},
