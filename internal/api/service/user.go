@@ -9,6 +9,7 @@ import (
 
 type UserService interface {
 	GetByID(context.Context, int64) (*model.User, error)
+	CreateUser(context.Context, int64) (*model.User, error)
 }
 
 type userService struct {
@@ -19,5 +20,9 @@ type userService struct {
 var _ UserService = (*userService)(nil)
 
 func (u *userService) GetByID(ctx context.Context, userID int64) (*model.User, error) {
+	return u.store.GetByID(ctx, userID)
+}
+
+func (u *userService) CreateUser(ctx context.Context, userID int64) (*model.User, error) {
 	return u.store.GetByID(ctx, userID)
 }
