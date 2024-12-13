@@ -21,10 +21,10 @@ type Error struct {
 type ErrorCode uint
 
 const (
-	ErrorCodeUnknown ErrorCode = iota
-	ErrorCodeNotFound
-	ErrorCodeConflict
-	ErrorCodeInvalidArgument
+	ErrorCodeUnknown    ErrorCode = iota // eg: for unknown errors
+	ErrorCodeNotFound                    // eg: for resource not found
+	ErrorCodeConflict                    // eg: for resource already exists
+	ErrorCodeBadRequest                  // eg: for validation errors
 )
 
 func NewErrorf(code ErrorCode, format string, a ...interface{}) error {
