@@ -14,6 +14,7 @@ type RegisterUserPayload struct {
 	Username string `json:"username" validate:"required,max=100"`
 	Email    string `json:"email" validate:"required,email,max=255"`
 	Password string `json:"password" validate:"required,min=3,max=72"`
+	Role     string `json:"role" validate:"required,oneof=user admin moderator"`
 }
 
 type UserHandler struct {
@@ -35,7 +36,30 @@ func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request
 		badRequestResponse(w, r, err)
 		return
 	}
-	//h.service.CreateUser()
+	ctx := r.Context()
+	u, err := h.service.CreateAndInvite(ctx, service.CreateUserRequest{
+		Username: payload.Username,
+		Email:    payload.Email,
+		Password: payload.Password,
+		Role:     payload.Role,
+	})
+
+	if err != nil {
+		switch err {
+		case common.ErrDuplicateEmail:
+			badRequestResponse(w, r, err)
+		case common.ErrDuplicateUsername:
+			badRequestResponse(w, r, err)
+		default:
+			internalServerError(w, r, err)
+		}
+		return
+	}
+
+	if err := jsonResponse(w, http.StatusCreated, u); err != nil {
+		internalServerError(w, r, err)
+		return
+	}
 
 }
 
