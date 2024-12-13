@@ -28,25 +28,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ac := &api.Api{
-		Config: api.Config{
-			Addr:              env.GetString("ADDR", ":8080"),
-			CorsAllowedOrigin: env.GetString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
-		},
+	conf := api.ApiConfig{
+		Addr:              env.GetString("ADDR", ":8080"),
+		CorsAllowedOrigin: env.GetString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
 	}
-	s, err := newServer(ac, db)
+	s, err := newServer(conf, db)
 	log.Fatal(runSever(s))
 }
 
-func newServer(a *api.Api, db *sql.DB) (*http.Server, error) {
+func newServer(config api.ApiConfig, db *sql.DB) (*http.Server, error) {
 	store := store.NewStorage(db)
 	service := service.NewService(store)
 	handler := handler.NewHandler(service)
 
-	router := api.NewRouter(handler, a.Config)
+	router := api.NewRouter(handler, config)
 	routes := router.RegisterHandlers()
 	return &http.Server{
-		Addr:         a.Config.Addr,
+		Addr:         config.Addr,
 		Handler:      routes,
 		WriteTimeout: time.Second * 30,
 		ReadTimeout:  time.Second * 10,

@@ -5,6 +5,7 @@ in
 
 pkgs.mkShellNoCC {
     packages = with pkgs; [
+        pkgs.tree # optional
         ## added for golang
         pkgs.go_1_22
         pkgs.go-migrate # for using go migration cli from https://github.com/golang-migrate/migrate

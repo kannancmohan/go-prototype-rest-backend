@@ -12,10 +12,10 @@ import (
 
 type Router struct {
 	handler handler.Handler
-	config  Config
+	config  ApiConfig
 }
 
-func NewRouter(handler handler.Handler, config Config) *Router {
+func NewRouter(handler handler.Handler, config ApiConfig) *Router {
 	return &Router{
 		handler: handler,
 		config:  config,

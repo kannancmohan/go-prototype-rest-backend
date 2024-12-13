@@ -1,16 +1,6 @@
 package api
 
-type Api struct {
-	Config Config
-	// store         store.Storage
-	// cacheStorage  cache.Storage
-	// logger        *zap.SugaredLogger
-	// mailer        mailer.Client
-	// authenticator auth.Authenticator
-	// rateLimiter   ratelimiter.Limiter
-}
-
-type Config struct {
+type ApiConfig struct {
 	Addr              string
 	CorsAllowedOrigin string
 	// db   db.DBConfig
