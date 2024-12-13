@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 )
 
 // request model
@@ -35,6 +35,7 @@ func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request
 		badRequestResponse(w, r, err)
 		return
 	}
+	//h.service.CreateUser()
 
 }
 
@@ -48,7 +49,7 @@ func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	user, err := h.service.GetByID(r.Context(), userID)
 	if err != nil {
 		switch err {
-		case store.ErrNotFound:
+		case common.ErrNotFound:
 			notFoundResponse(w, r, err)
 			return
 		default:

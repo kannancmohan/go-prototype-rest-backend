@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/model"
 	"github.com/lib/pq"
 )
@@ -43,7 +44,7 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, ErrNotFound
+			return nil, common.ErrNotFound
 		default:
 			return nil, err
 		}

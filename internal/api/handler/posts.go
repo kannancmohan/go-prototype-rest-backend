@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 )
 
 type PostHandler struct {
@@ -36,7 +36,7 @@ func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	post, err := h.service.GetByID(r.Context(), postID)
 	if err != nil {
 		switch {
-		case errors.Is(err, store.ErrNotFound):
+		case errors.Is(err, common.ErrNotFound):
 			notFoundResponse(w, r, err)
 		default:
 			internalServerError(w, r, err)
