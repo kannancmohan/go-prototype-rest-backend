@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
@@ -28,18 +29,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	conf := api.ApiConfig{
-		Addr:              env.GetString("ADDR", ":8080"),
-		CorsAllowedOrigin: env.GetString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
+	conf := config.ApiConfig{
+		Addr:                    env.GetString("ADDR", ":8080"),
+		CorsAllowedOrigin:       env.GetString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
+		SqlQueryTimeoutDuration: time.Second * 5,
 	}
-	s, err := newServer(conf, db)
+	s, err := newServer(&conf, db)
 	log.Fatal(runSever(s))
 }
 
-func newServer(config api.ApiConfig, db *sql.DB) (*http.Server, error) {
-	pStore := store.NewPostStore(db)
+func newServer(config *config.ApiConfig, db *sql.DB) (*http.Server, error) {
+	pStore := store.NewPostStore(db, config)
 	//rStore := store.NewRoleStore(db)
-	uStore := store.NewUserStore(db)
+	uStore := store.NewUserStore(db, config)
 
 	pService := service.NewPostService(pStore)
 	uService := service.NewUserService(uStore)

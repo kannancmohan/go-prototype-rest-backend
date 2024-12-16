@@ -6,20 +6,19 @@ import (
 	"errors"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/lib/pq"
 )
 
 type postStore struct {
-	db *sql.DB
+	db     *sql.DB
+	config *config.ApiConfig
 }
 
-func NewPostStore(db *sql.DB) *postStore {
-	return &postStore{db: db}
+func NewPostStore(db *sql.DB, cfg *config.ApiConfig) *postStore {
+	return &postStore{db: db, config: cfg}
 }
-
-// Explicitly ensuring that postStore adheres to the PostStore interface
-//var _ PostStore = (*postStore)(nil)
 
 func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) {
 	query := `
@@ -28,7 +27,7 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 		WHERE id = $1
 	`
 
-	ctx, cancel := context.WithTimeout(ctx, QueryTimeoutDuration)
+	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
 	defer cancel()
 
 	var post model.Post

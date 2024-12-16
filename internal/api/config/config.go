@@ -1,8 +1,11 @@
-package api
+package config
+
+import "time"
 
 type ApiConfig struct {
-	Addr              string
-	CorsAllowedOrigin string
+	Addr                    string
+	CorsAllowedOrigin       string
+	SqlQueryTimeoutDuration time.Duration
 	// db   db.DBConfig
 	// env         string
 	// apiURL      string

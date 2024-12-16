@@ -7,15 +7,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 )
 
 type Router struct {
 	handler handler.Handler
-	config  ApiConfig
+	config  *config.ApiConfig
 }
 
-func NewRouter(handler handler.Handler, config ApiConfig) *Router {
+func NewRouter(handler handler.Handler, config *config.ApiConfig) *Router {
 	return &Router{
 		handler: handler,
 		config:  config,

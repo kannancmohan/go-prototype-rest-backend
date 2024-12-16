@@ -4,19 +4,18 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 
 type roleStore struct {
-	db *sql.DB
+	db     *sql.DB
+	config *config.ApiConfig
 }
 
-func NewRoleStore(db *sql.DB) *roleStore {
-	return &roleStore{db: db}
+func NewRoleStore(db *sql.DB, cfg *config.ApiConfig) *roleStore {
+	return &roleStore{db: db, config: cfg}
 }
-
-// Explicitly ensuring that roleStore adheres to the RoleStore interface
-//var _ RoleStore = (*roleStore)(nil)
 
 func (s *roleStore) GetByName(ctx context.Context, slug string) (*model.Role, error) {
 	query := `SELECT id, name, description, level FROM roles WHERE name = $1`
