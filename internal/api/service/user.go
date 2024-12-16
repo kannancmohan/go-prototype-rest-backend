@@ -37,6 +37,9 @@ func (u *userService) CreateAndInvite(ctx context.Context, payload adapter.Creat
 		//app.internalServerError(w, r, err)
 		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error hashing password")
 	}
-	//return u.store.Create(ctx)
-	return nil, nil
+
+	if err := u.store.Create(ctx, user); err != nil {
+		return nil, err
+	}
+	return user, nil
 }

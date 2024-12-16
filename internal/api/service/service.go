@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
-
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 
@@ -17,5 +15,5 @@ type RoleStore interface {
 
 type UserStore interface {
 	GetByID(context.Context, int64) (*model.User, error)
-	Create(context.Context, *sql.Tx, *model.User) error
+	Create(context.Context, *model.User) error
 }

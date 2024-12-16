@@ -57,7 +57,7 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 	return user, nil
 }
 
-func (s *userStore) Create(ctx context.Context, tx *sql.Tx, user *model.User) error {
+func (s *userStore) Create(ctx context.Context, user *model.User) error {
 	query := `
 		INSERT INTO users (username, password, email, role_id) VALUES 
     ($1, $2, $3, (SELECT id FROM roles WHERE name = $4))
@@ -72,7 +72,7 @@ func (s *userStore) Create(ctx context.Context, tx *sql.Tx, user *model.User) er
 		role = "user"
 	}
 
-	err := tx.QueryRowContext(
+	err := s.db.QueryRowContext(
 		ctx,
 		query,
 		user.Username,
