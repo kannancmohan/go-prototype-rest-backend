@@ -23,7 +23,7 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 		SELECT users.id, username, email, password, created_at, roles.*
 		FROM users
 		JOIN roles ON (users.role_id = roles.id)
-		WHERE users.id = $1 AND is_active = true
+		WHERE users.id = $1
 	`
 
 	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
