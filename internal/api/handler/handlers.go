@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
 )
 
 var validate *validator.Validate
@@ -18,7 +18,7 @@ func init() {
 
 type UserService interface {
 	GetByID(context.Context, int64) (*model.User, error)
-	CreateAndInvite(context.Context, adapter.CreateUserRequest) (*model.User, error)
+	CreateAndInvite(context.Context, dto.CreateUserRequest) (*model.User, error)
 }
 
 type PostService interface {

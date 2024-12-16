@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -29,12 +31,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	conf := config.ApiConfig{
+	conf := &config.ApiConfig{
 		Addr:                    env.GetString("ADDR", ":8080"),
 		CorsAllowedOrigin:       env.GetString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
 		SqlQueryTimeoutDuration: time.Second * 5,
 	}
-	s, err := newServer(&conf, db)
+	s, err := newServer(conf, db)
 	log.Fatal(runSever(s))
 }
 
@@ -60,6 +62,7 @@ func newServer(config *config.ApiConfig, db *sql.DB) (*http.Server, error) {
 }
 
 func runSever(s *http.Server) error {
+	slog.Info(fmt.Sprintf("Listening on host:%s", s.Addr))
 	err := s.ListenAndServe()
 	if !errors.Is(err, http.ErrServerClosed) {
 		return err

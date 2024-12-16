@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
 )
 
 type userService struct {
@@ -23,7 +23,7 @@ func (u *userService) GetByID(ctx context.Context, userID int64) (*model.User, e
 	return u.store.GetByID(ctx, userID)
 }
 
-func (u *userService) CreateAndInvite(ctx context.Context, payload adapter.CreateUserRequest) (*model.User, error) {
+func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUserRequest) (*model.User, error) {
 	user := &model.User{
 		Username: payload.Username,
 		Email:    payload.Email,
