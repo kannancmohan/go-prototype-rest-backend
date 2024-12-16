@@ -37,9 +37,14 @@ func main() {
 }
 
 func newServer(config api.ApiConfig, db *sql.DB) (*http.Server, error) {
-	store := store.NewStorage(db)
-	service := service.NewService(store)
-	handler := handler.NewHandler(service)
+	pStore := store.NewPostStore(db)
+	//rStore := store.NewRoleStore(db)
+	uStore := store.NewUserStore(db)
+
+	pService := service.NewPostService(pStore)
+	uService := service.NewUserService(uStore)
+
+	handler := handler.NewHandler(uService, pService)
 
 	router := api.NewRouter(handler, config)
 	routes := router.RegisterHandlers()

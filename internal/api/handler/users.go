@@ -18,10 +18,10 @@ type RegisterUserPayload struct {
 }
 
 type UserHandler struct {
-	service adapter.UserService
+	service UserService
 }
 
-func NewUserHandler(service adapter.UserService) *UserHandler {
+func NewUserHandler(service UserService) *UserHandler {
 	return &UserHandler{service: service}
 }
 

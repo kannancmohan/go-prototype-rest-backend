@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 
 var validate *validator.Validate
@@ -14,15 +16,24 @@ func init() {
 	validate = validator.New(validator.WithRequiredStructEnabled())
 }
 
+type UserService interface {
+	GetByID(context.Context, int64) (*model.User, error)
+	CreateAndInvite(context.Context, adapter.CreateUserRequest) (*model.User, error)
+}
+
+type PostService interface {
+	GetByID(context.Context, int64) (*model.Post, error)
+}
+
 type Handler struct {
 	UserHandler *UserHandler
 	PostHandler *PostHandler
 }
 
-func NewHandler(service adapter.Service) Handler {
+func NewHandler(user UserService, post PostService) Handler {
 	return Handler{
-		UserHandler: NewUserHandler(service.UserService),
-		PostHandler: NewPostHandler(service.PostService),
+		UserHandler: NewUserHandler(user),
+		PostHandler: NewPostHandler(post),
 	}
 }
 

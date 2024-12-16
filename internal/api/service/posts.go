@@ -3,12 +3,15 @@ package service
 import (
 	"context"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 
 type postService struct {
-	store adapter.PostStore
+	store PostStore
+}
+
+func NewPostService(store PostStore) *postService {
+	return &postService{store: store}
 }
 
 // Explicitly ensuring that postService adheres to the PostService interface

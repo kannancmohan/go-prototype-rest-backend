@@ -12,6 +12,10 @@ type userStore struct {
 	db *sql.DB
 }
 
+func NewUserStore(db *sql.DB) *userStore {
+	return &userStore{db: db}
+}
+
 // Explicitly ensuring that userStore adheres to the UserStore interface
 //var _ UserStore = (*userStore)(nil)
 

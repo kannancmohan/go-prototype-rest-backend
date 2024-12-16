@@ -1,12 +1,21 @@
 package service
 
 import (
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
+	"context"
+	"database/sql"
+
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 
-func NewService(store adapter.Storage) adapter.Service {
-	return adapter.Service{
-		UserService: &userService{store: store.Users},
-		PostService: &postService{store: store.Posts},
-	}
+type PostStore interface {
+	GetByID(context.Context, int64) (*model.Post, error)
+}
+
+type RoleStore interface {
+	GetByName(context.Context, string) (*model.Role, error)
+}
+
+type UserStore interface {
+	GetByID(context.Context, int64) (*model.User, error)
+	Create(context.Context, *sql.Tx, *model.User) error
 }

@@ -9,7 +9,11 @@ import (
 )
 
 type userService struct {
-	store adapter.UserStore
+	store UserStore
+}
+
+func NewUserService(store UserStore) *userService {
+	return &userService{store: store}
 }
 
 // Explicitly ensuring that userService adheres to the UserService interface

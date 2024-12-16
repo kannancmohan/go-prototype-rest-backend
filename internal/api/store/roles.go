@@ -11,6 +11,10 @@ type roleStore struct {
 	db *sql.DB
 }
 
+func NewRoleStore(db *sql.DB) *roleStore {
+	return &roleStore{db: db}
+}
+
 // Explicitly ensuring that roleStore adheres to the RoleStore interface
 //var _ RoleStore = (*roleStore)(nil)
 
