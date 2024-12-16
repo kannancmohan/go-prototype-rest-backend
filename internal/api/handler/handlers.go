@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
 )
 
 var validate *validator.Validate
@@ -19,7 +19,7 @@ type Handler struct {
 	PostHandler *PostHandler
 }
 
-func NewHandler(service service.Service) Handler {
+func NewHandler(service adapter.Service) Handler {
 	return Handler{
 		UserHandler: NewUserHandler(service.UserService),
 		PostHandler: NewPostHandler(service.PostService),

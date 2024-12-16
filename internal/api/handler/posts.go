@@ -7,14 +7,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
 )
 
 type PostHandler struct {
-	service service.PostService
+	service adapter.PostService
 }
 
-func NewPostHandler(service service.PostService) *PostHandler {
+func NewPostHandler(service adapter.PostService) *PostHandler {
 	return &PostHandler{service: service}
 }
 

@@ -6,19 +6,20 @@ import (
 	"errors"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/lib/pq"
 )
 
-type PostStore interface {
-	GetByID(context.Context, int64) (*model.Post, error)
-}
 type postStore struct {
 	db *sql.DB
 }
 
+func NewPostStore(db *sql.DB) *postStore {
+	return &postStore{db: db}
+}
+
 // Explicitly ensuring that postStore adheres to the PostStore interface
-var _ PostStore = (*postStore)(nil)
+//var _ PostStore = (*postStore)(nil)
 
 func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) {
 	query := `

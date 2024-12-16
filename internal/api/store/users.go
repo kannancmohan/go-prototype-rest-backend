@@ -5,20 +5,15 @@ import (
 	"database/sql"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
-
-type UserStore interface {
-	GetByID(context.Context, int64) (*model.User, error)
-	Create(context.Context, *sql.Tx, *model.User) error
-}
 
 type userStore struct {
 	db *sql.DB
 }
 
 // Explicitly ensuring that userStore adheres to the UserStore interface
-var _ UserStore = (*userStore)(nil)
+//var _ UserStore = (*userStore)(nil)
 
 func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, error) {
 	query := `

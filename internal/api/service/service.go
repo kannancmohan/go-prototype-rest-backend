@@ -1,14 +1,11 @@
 package service
 
-import "github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+import (
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
+)
 
-type Service struct {
-	UserService UserService
-	PostService PostService
-}
-
-func NewService(store store.Storage) Service {
-	return Service{
+func NewService(store adapter.Storage) adapter.Service {
+	return adapter.Service{
 		UserService: &userService{store: store.Users},
 		PostService: &postService{store: store.Posts},
 	}

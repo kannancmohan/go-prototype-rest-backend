@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
 )
 
 // request model
@@ -18,10 +18,10 @@ type RegisterUserPayload struct {
 }
 
 type UserHandler struct {
-	service service.UserService
+	service adapter.UserService
 }
 
-func NewUserHandler(service service.UserService) *UserHandler {
+func NewUserHandler(service adapter.UserService) *UserHandler {
 	return &UserHandler{service: service}
 }
 
@@ -37,7 +37,7 @@ func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	ctx := r.Context()
-	u, err := h.service.CreateAndInvite(ctx, service.CreateUserRequest{
+	u, err := h.service.CreateAndInvite(ctx, adapter.CreateUserRequest{
 		Username: payload.Username,
 		Email:    payload.Email,
 		Password: payload.Password,

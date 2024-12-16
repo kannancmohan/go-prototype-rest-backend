@@ -4,34 +4,22 @@ import (
 	"context"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/model"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/adapter"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 
-type CreateUserRequest struct {
-	Username string
-	Email    string
-	Password string
-	Role     string
-}
-
-type UserService interface {
-	GetByID(context.Context, int64) (*model.User, error)
-	CreateAndInvite(context.Context, CreateUserRequest) (*model.User, error)
-}
-
 type userService struct {
-	store store.UserStore
+	store adapter.UserStore
 }
 
 // Explicitly ensuring that userService adheres to the UserService interface
-var _ UserService = (*userService)(nil)
+//var _ UserService = (*userService)(nil)
 
 func (u *userService) GetByID(ctx context.Context, userID int64) (*model.User, error) {
 	return u.store.GetByID(ctx, userID)
 }
 
-func (u *userService) CreateAndInvite(ctx context.Context, payload CreateUserRequest) (*model.User, error) {
+func (u *userService) CreateAndInvite(ctx context.Context, payload adapter.CreateUserRequest) (*model.User, error) {
 	user := &model.User{
 		Username: payload.Username,
 		Email:    payload.Email,

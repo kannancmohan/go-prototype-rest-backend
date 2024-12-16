@@ -1,0 +1,27 @@
+package adapter
+
+import (
+	"context"
+	"database/sql"
+
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+)
+
+type PostStore interface {
+	GetByID(context.Context, int64) (*model.Post, error)
+}
+
+type RoleStore interface {
+	GetByName(context.Context, string) (*model.Role, error)
+}
+
+type UserStore interface {
+	GetByID(context.Context, int64) (*model.User, error)
+	Create(context.Context, *sql.Tx, *model.User) error
+}
+
+type Storage struct {
+	Posts PostStore
+	Users UserStore
+	Roles RoleStore
+}
