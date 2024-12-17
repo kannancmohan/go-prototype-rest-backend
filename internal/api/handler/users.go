@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
 )
 
@@ -26,14 +25,9 @@ func NewUserHandler(service UserService) *UserHandler {
 }
 
 func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
-	var payload RegisterUserPayload
-	if err := readJSON(w, r, &payload); err != nil {
-		badRequestResponse(w, r, err)
-		return
-	}
-
-	if err := validate.Struct(payload); err != nil {
-		badRequestResponse(w, r, err)
+	payload, err := readJSONValidate[RegisterUserPayload](w, r)
+	if err != nil {
+		renderErrorResponse(w, "invalid request", err)
 		return
 	}
 	ctx := r.Context()
@@ -45,45 +39,24 @@ func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request
 	})
 
 	if err != nil {
-		switch err {
-		case common.ErrDuplicateEmail:
-			badRequestResponse(w, r, err)
-		case common.ErrDuplicateUsername:
-			badRequestResponse(w, r, err)
-		default:
-			internalServerError(w, r, err)
-		}
+		renderErrorResponse(w, "create failed", err)
 		return
 	}
-
-	if err := jsonResponse(w, http.StatusCreated, u); err != nil {
-		internalServerError(w, r, err)
-		return
-	}
-
+	renderResponse(w, http.StatusCreated, u)
 }
 
 func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64) //TODO
 	if err != nil {
-		badRequestResponse(w, r, err)
+		renderErrorResponse(w, "invalid request", err)
 		return
 	}
 
 	user, err := h.service.GetByID(r.Context(), userID)
 	if err != nil {
-		switch err {
-		case common.ErrNotFound:
-			notFoundResponse(w, r, err)
-			return
-		default:
-			internalServerError(w, r, err)
-			return
-		}
-	}
-
-	if err := jsonResponse(w, http.StatusOK, user); err != nil {
-		internalServerError(w, r, err)
+		renderErrorResponse(w, "find failed", err)
 		return
 	}
+
+	renderResponse(w, http.StatusOK, user)
 }

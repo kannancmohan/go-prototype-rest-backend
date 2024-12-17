@@ -50,7 +50,7 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 		case sql.ErrNoRows:
 			return nil, common.ErrNotFound
 		default:
-			return nil, err
+			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "user not found")
 		}
 	}
 
@@ -90,7 +90,7 @@ func (s *userStore) Create(ctx context.Context, user *model.User) error {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"`:
 			return common.ErrDuplicateUsername
 		default:
-			return err
+			return common.WrapErrorf(err, common.ErrorCodeUnknown, "create user")
 		}
 	}
 
