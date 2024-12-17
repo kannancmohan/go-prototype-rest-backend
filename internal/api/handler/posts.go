@@ -25,15 +25,15 @@ func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 	// }
 
 	// post.Comments = comments
-	postID, err := strconv.ParseInt(chi.URLParam(r, "postID"), 10, 64) //TODO
+	id, err := getIntParam("postID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
 	}
 
-	post, err := h.service.GetByID(r.Context(), postID)
+	post, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
-		renderErrorResponse(w, "create failed", err)
+		renderErrorResponse(w, "find failed", err)
 		return
 	}
 

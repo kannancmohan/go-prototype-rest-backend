@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
@@ -41,7 +43,7 @@ func NewHandler(user UserService, post PostService) Handler {
 	}
 }
 
-func readJSONValidate[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+func readJSONValid[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	payload, err := readJSON[T](w, r)
 	if err != nil {
 		return payload, err
@@ -131,4 +133,12 @@ func setValidationErrors(origErr error, res *errorResponse) {
 		}
 		res.Validations = messages
 	}
+}
+
+func getIntParam(param string, r *http.Request) (int64, error) {
+	userID, err := strconv.ParseInt(chi.URLParam(r, param), 10, 64) //TODO
+	if err != nil {
+		return userID, common.WrapErrorf(err, common.ErrorCodeBadRequest, "invalid request")
+	}
+	return userID, nil
 }

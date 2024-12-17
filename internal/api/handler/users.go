@@ -2,9 +2,7 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
 )
 
@@ -25,7 +23,7 @@ func NewUserHandler(service UserService) *UserHandler {
 }
 
 func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
-	payload, err := readJSONValidate[RegisterUserPayload](w, r)
+	payload, err := readJSONValid[RegisterUserPayload](w, r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
@@ -46,13 +44,13 @@ func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	userID, err := strconv.ParseInt(chi.URLParam(r, "userID"), 10, 64) //TODO
+	id, err := getIntParam("userID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
 	}
 
-	user, err := h.service.GetByID(r.Context(), userID)
+	user, err := h.service.GetByID(r.Context(), id)
 	if err != nil {
 		renderErrorResponse(w, "find failed", err)
 		return
