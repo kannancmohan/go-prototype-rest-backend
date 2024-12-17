@@ -11,19 +11,19 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 )
 
-type Router struct {
+type router struct {
 	handler handler.Handler
 	config  *config.ApiConfig
 }
 
-func NewRouter(handler handler.Handler, config *config.ApiConfig) *Router {
-	return &Router{
+func NewRouter(handler handler.Handler, config *config.ApiConfig) *router {
+	return &router{
 		handler: handler,
 		config:  config,
 	}
 }
 
-func (rt *Router) RegisterHandlers() http.Handler {
+func (rt *router) RegisterHandlers() http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(middleware.RequestID)

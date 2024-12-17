@@ -3,9 +3,15 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
 )
@@ -37,85 +43,102 @@ func NewHandler(user UserService, post PostService) Handler {
 	}
 }
 
-func readJSON(w http.ResponseWriter, r *http.Request, data any) error {
+func readJSONValid[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+	payload, err := readJSON[T](w, r)
+	if err != nil {
+		return payload, err
+	}
+	if err := validate.Struct(payload); err != nil {
+		return payload, common.WrapErrorf(err, common.ErrorCodeBadRequest, "json validation")
+	}
+	return payload, nil
+}
+
+func readJSON[T any](w http.ResponseWriter, r *http.Request) (T, error) {
+	var v T
 	maxBytes := 1_048_578 // 1mb
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
 
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
-
-	return decoder.Decode(data)
+	if err := decoder.Decode(&v); err != nil {
+		return v, common.WrapErrorf(err, common.ErrorCodeBadRequest, "json decoder")
+	}
+	return v, nil
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) error {
-	w.Header().Add("Content-Type", "application/json")
+func renderResponse[T any](w http.ResponseWriter, status int, v T) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	return json.NewEncoder(w).Encode(v)
-}
-
-func jsonResponse(w http.ResponseWriter, status int, data any) error {
-	type envelope struct {
-		Data any `json:"data"`
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "json encoder")
 	}
-	return writeJSON(w, status, &envelope{Data: data})
+	return nil
 }
 
-func writeJSONError(w http.ResponseWriter, status int, message string) error {
-	type envelope struct {
-		Error string `json:"error"`
+type errorResponse struct {
+	Error       string   `json:"error"`
+	Validations []string `json:"validations,omitempty"`
+}
+
+func renderErrorResponse(w http.ResponseWriter, msg string, err error) {
+	resp := errorResponse{Error: msg}
+	status := http.StatusInternalServerError //default status
+	logLevel := slog.LevelInfo               //default log level
+
+	var ierr *common.Error
+	if !errors.As(err, &ierr) {
+		logLevel = slog.LevelError
+		resp.Error = "internal error"
+	} else {
+		switch ierr.Code() {
+		case common.ErrorCodeNotFound:
+			status = http.StatusNotFound
+		case common.ErrorCodeBadRequest:
+			status = http.StatusBadRequest
+			origErr := ierr.Unwrap()
+			setValidationErrors(origErr, &resp)
+		case common.ErrorCodeConflict:
+			status = http.StatusConflict
+		case common.ErrorCodeUnknown:
+			fallthrough
+		default:
+			logLevel = slog.LevelError
+			status = http.StatusInternalServerError
+		}
 	}
-
-	return writeJSON(w, status, &envelope{Error: message})
+	logWithLevel(logLevel, err)
+	renderResponse(w, status, resp)
 }
 
-func internalServerError(w http.ResponseWriter, r *http.Request, err error) {
-	//app.logger.Errorw("internal error", "method", r.Method, "path", r.URL.Path, "error", err.Error())
-
-	writeJSONError(w, http.StatusInternalServerError, "the server encountered a problem")
+func logWithLevel(level slog.Level, err error) {
+	switch level {
+	case slog.LevelDebug:
+		slog.Debug(err.Error())
+	case slog.LevelInfo:
+		slog.Info(err.Error())
+	case slog.LevelError:
+		slog.Error(err.Error())
+	default:
+		slog.Info(err.Error()) // Default to Info level
+	}
 }
 
-func forbiddenResponse(w http.ResponseWriter, r *http.Request) {
-	//app.logger.Warnw("forbidden", "method", r.Method, "path", r.URL.Path, "error")
-
-	writeJSONError(w, http.StatusForbidden, "forbidden")
+func setValidationErrors(origErr error, res *errorResponse) {
+	if validationErrors, ok := origErr.(validator.ValidationErrors); ok {
+		var messages []string
+		for _, fieldError := range validationErrors {
+			message := fmt.Sprintf("The field '%s' failed on the '%s' validation", fieldError.Field(), fieldError.Tag())
+			messages = append(messages, message)
+		}
+		res.Validations = messages
+	}
 }
 
-func badRequestResponse(w http.ResponseWriter, r *http.Request, err error) {
-	//app.logger.Warnf("bad request", "method", r.Method, "path", r.URL.Path, "error", err.Error())
-
-	writeJSONError(w, http.StatusBadRequest, err.Error())
-}
-
-func conflictResponse(w http.ResponseWriter, r *http.Request, err error) {
-	//app.logger.Errorf("conflict response", "method", r.Method, "path", r.URL.Path, "error", err.Error())
-
-	writeJSONError(w, http.StatusConflict, err.Error())
-}
-
-func notFoundResponse(w http.ResponseWriter, r *http.Request, err error) {
-	//app.logger.Warnf("not found error", "method", r.Method, "path", r.URL.Path, "error", err.Error())
-
-	writeJSONError(w, http.StatusNotFound, "not found")
-}
-
-func unauthorizedErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	//app.logger.Warnf("unauthorized error", "method", r.Method, "path", r.URL.Path, "error", err.Error())
-
-	writeJSONError(w, http.StatusUnauthorized, "unauthorized")
-}
-
-func unauthorizedBasicErrorResponse(w http.ResponseWriter, r *http.Request, err error) {
-	//app.logger.Warnf("unauthorized basic error", "method", r.Method, "path", r.URL.Path, "error", err.Error())
-
-	w.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
-
-	writeJSONError(w, http.StatusUnauthorized, "unauthorized")
-}
-
-func rateLimitExceededResponse(w http.ResponseWriter, r *http.Request, retryAfter string) {
-	//app.logger.Warnw("rate limit exceeded", "method", r.Method, "path", r.URL.Path)
-
-	w.Header().Set("Retry-After", retryAfter)
-
-	writeJSONError(w, http.StatusTooManyRequests, "rate limit exceeded, retry after: "+retryAfter)
+func getIntParam(param string, r *http.Request) (int64, error) {
+	userID, err := strconv.ParseInt(chi.URLParam(r, param), 10, 64) //TODO
+	if err != nil {
+		return userID, common.WrapErrorf(err, common.ErrorCodeBadRequest, "invalid request")
+	}
+	return userID, nil
 }

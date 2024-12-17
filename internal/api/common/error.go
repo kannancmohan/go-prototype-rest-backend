@@ -1,15 +1,14 @@
 package common
 
 import (
-	"errors"
 	"fmt"
 )
 
 var (
 	ErrNotFound          = NewErrorf(ErrorCodeNotFound, "resource not found")
 	ErrConflict          = NewErrorf(ErrorCodeConflict, "resource already exists")
-	ErrDuplicateEmail    = errors.New("a user with that email already exists")
-	ErrDuplicateUsername = errors.New("a user with that username already exists")
+	ErrDuplicateEmail    = NewErrorf(ErrorCodeBadRequest, "email already exists")
+	ErrDuplicateUsername = NewErrorf(ErrorCodeBadRequest, "username already exists")
 )
 
 type Error struct {
@@ -24,7 +23,7 @@ const (
 	ErrorCodeUnknown    ErrorCode = iota // eg: for unknown errors
 	ErrorCodeNotFound                    // eg: for resource not found
 	ErrorCodeConflict                    // eg: for resource already exists
-	ErrorCodeBadRequest                  // eg: for validation errors
+	ErrorCodeBadRequest                  // eg: for decoding/validation errors
 )
 
 func NewErrorf(code ErrorCode, format string, a ...interface{}) error {

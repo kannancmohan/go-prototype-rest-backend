@@ -46,7 +46,7 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 		case errors.Is(err, sql.ErrNoRows):
 			return nil, common.ErrNotFound
 		default:
-			return nil, err
+			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "post not found")
 		}
 	}
 
