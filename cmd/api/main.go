@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
@@ -37,7 +41,12 @@ func main() {
 		SqlQueryTimeoutDuration: time.Second * 5,
 	}
 	s, err := newServer(conf, db)
-	log.Fatal(runSever(s))
+	errC := make(chan error, 1) //channel to capture error while start/kill application
+	handleShutdown(s, db, errC) //gracefully shutting down applications in response to system signals
+	startServer(s, errC)
+	if err := <-errC; err != nil {
+		log.Fatalf("Error while running: %s", err)
+	}
 }
 
 func newServer(config *config.ApiConfig, db *sql.DB) (*http.Server, error) {
@@ -61,11 +70,37 @@ func newServer(config *config.ApiConfig, db *sql.DB) (*http.Server, error) {
 	}, nil
 }
 
-func runSever(s *http.Server) error {
-	slog.Info(fmt.Sprintf("Listening on host:%s", s.Addr))
-	err := s.ListenAndServe()
-	if !errors.Is(err, http.ErrServerClosed) {
-		return err
-	}
-	return nil
+func startServer(s *http.Server, errC chan error) {
+	go func() {
+		slog.Info(fmt.Sprintf("Listening on host: %s", s.Addr))
+		// After Shutdown or Close, the returned error is ErrServerClosed
+		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errC <- err
+		}
+	}()
+}
+
+func handleShutdown(s *http.Server, db *sql.DB, errC chan error) {
+	// create notification context that terminates if one of the mentioned signal(eg os.Interrup) is triggered
+	ntyCtx, ntyStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		<-ntyCtx.Done() // Block until signal is received
+		slog.Info("Shutdown signal received")
+
+		ctxTimeout, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer func() {
+			db.Close()
+			ntyStop()
+			ctxCancel()
+			close(errC) //close the errC channel
+		}()
+
+		// Shutdown the server
+		s.SetKeepAlivesEnabled(false)
+		if err := s.Shutdown(ctxTimeout); err != nil {
+			errC <- err //log shutdown error if any
+		}
+
+		slog.Info("Shutdown completed")
+	}()
 }

@@ -2,9 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type PostHandler struct {
