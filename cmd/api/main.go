@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-
+	initLogger()
 	dbCfg := db.DBConfig{
 		Addr:         env.GetString("DB_ADDR", "postgres://admin:adminpassword@localhost/socialnetwork?sslmode=disable"),
 		MaxOpenConns: env.GetInt("DB_MAX_OPEN_CONNS", 30),
@@ -103,4 +103,9 @@ func handleShutdown(s *http.Server, db *sql.DB, errC chan error) {
 
 		slog.Info("Shutdown completed")
 	}()
+}
+
+func initLogger() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
 }
