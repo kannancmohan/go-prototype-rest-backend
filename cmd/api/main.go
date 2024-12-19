@@ -23,24 +23,15 @@ import (
 )
 
 func main() {
-	initLogger()
-	dbCfg := db.DBConfig{
-		Addr:         env.GetString("DB_ADDR", "postgres://admin:adminpassword@localhost/socialnetwork?sslmode=disable"),
-		MaxOpenConns: env.GetInt("DB_MAX_OPEN_CONNS", 30),
-		MaxIdleConns: env.GetInt("DB_MAX_IDLE_CONNS", 30),
-		MaxIdleTime:  env.GetString("DB_MAX_IDLE_TIME", "15m"),
-	}
-	db, err := dbCfg.NewConnection()
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	env := env.InitEnvVariables()
+	initLogger(env)
+	db := initDB(env)
 	conf := &config.ApiConfig{
-		Addr:                    env.GetString("ADDR", ":8080"),
-		CorsAllowedOrigin:       env.GetString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
+		Addr:                    fmt.Sprintf(":%s", env.ApiPort),
+		CorsAllowedOrigin:       env.ApiCorsAllowedOrigin,
 		SqlQueryTimeoutDuration: time.Second * 5,
 	}
-	s, err := newServer(conf, db)
+	s, _ := newServer(conf, db)
 	errC := make(chan error, 1) //channel to capture error while start/kill application
 	handleShutdown(s, db, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
@@ -105,7 +96,26 @@ func handleShutdown(s *http.Server, db *sql.DB, errC chan error) {
 	}()
 }
 
-func initLogger() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+func initLogger(env *env.EnvVar) {
+	var level slog.Level
+	err := level.UnmarshalText([]byte(env.LogLevel))
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
+}
+
+func initDB(env *env.EnvVar) *sql.DB {
+	dbCfg := db.DBConfig{
+		Addr:         fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.ApiDBName, env.DBSslMode),
+		MaxOpenConns: env.ApiDBMaxOpenConns,
+		MaxIdleConns: env.ApiDBMaxIdleConns,
+		MaxIdleTime:  env.ApiDBMaxIdleTime,
+	}
+	db, err := dbCfg.NewConnection()
+	if err != nil {
+		log.Fatal(err)
+	}
+	return db
 }
