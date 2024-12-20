@@ -1,7 +1,8 @@
-package service
+package store
 
 import (
 	"context"
+
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 

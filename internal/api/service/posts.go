@@ -4,13 +4,14 @@ import (
 	"context"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 )
 
 type postService struct {
-	store PostStore
+	store store.PostStore
 }
 
-func NewPostService(store PostStore) *postService {
+func NewPostService(store store.PostStore) *postService {
 	return &postService{store: store}
 }
 

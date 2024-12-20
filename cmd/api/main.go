@@ -13,25 +13,36 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/db"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/env"
+	postgres_memcache "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/memcache/postgres"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
 )
 
 func main() {
 	env := env.InitEnvVariables()
-	initLogger(env)
-	db := initDB(env)
+	initLogger(env) // error ignored on purpose
+
+	db, err := initDB(env)
+	if err != nil {
+		log.Fatalf("Error init db: %s", err)
+	}
+
+	memCached, err := NewMemcached(env)
+	if err != nil {
+		log.Fatalf("Error init memcached: %s", err)
+	}
+
 	conf := &config.ApiConfig{
 		Addr:                    fmt.Sprintf(":%s", env.ApiPort),
 		CorsAllowedOrigin:       env.ApiCorsAllowedOrigin,
 		SqlQueryTimeoutDuration: time.Second * 5,
 	}
-	s, _ := newServer(conf, db)
+	s, _ := newServer(conf, db, memCached)
 	errC := make(chan error, 1) //channel to capture error while start/kill application
 	handleShutdown(s, db, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
@@ -40,20 +51,23 @@ func main() {
 	}
 }
 
-func newServer(config *config.ApiConfig, db *sql.DB) (*http.Server, error) {
-	pStore := store.NewPostStore(db, config)
-	//rStore := store.NewRoleStore(db)
-	uStore := store.NewUserStore(db, config)
+func newServer(cfg *config.ApiConfig, db *sql.DB, memClient *memcache.Client) (*http.Server, error) {
 
-	pService := service.NewPostService(pStore)
-	uService := service.NewUserService(uStore)
+	pStore := postgres.NewPostStore(db, cfg)
+	cachedPStore := postgres_memcache.NewPostStore(memClient, pStore, cfg)
+	//rStore := store.NewRoleStore(db)
+	uStore := postgres.NewUserStore(db, cfg)
+	cachedUStore := postgres_memcache.NewUserStore(memClient, uStore, cfg)
+
+	pService := service.NewPostService(cachedPStore)
+	uService := service.NewUserService(cachedUStore)
 
 	handler := handler.NewHandler(uService, pService)
 
-	router := api.NewRouter(handler, config)
+	router := api.NewRouter(handler, cfg)
 	routes := router.RegisterHandlers()
 	return &http.Server{
-		Addr:         config.Addr,
+		Addr:         cfg.Addr,
 		Handler:      routes,
 		WriteTimeout: time.Second * 30,
 		ReadTimeout:  time.Second * 10,
@@ -96,26 +110,13 @@ func handleShutdown(s *http.Server, db *sql.DB, errC chan error) {
 	}()
 }
 
-func initLogger(env *env.EnvVar) {
+func initLogger(env *env.EnvVar) error {
 	var level slog.Level
 	err := level.UnmarshalText([]byte(env.LogLevel))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
-}
-
-func initDB(env *env.EnvVar) *sql.DB {
-	dbCfg := db.DBConfig{
-		Addr:         fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.ApiDBName, env.DBSslMode),
-		MaxOpenConns: env.ApiDBMaxOpenConns,
-		MaxIdleConns: env.ApiDBMaxIdleConns,
-		MaxIdleTime:  env.ApiDBMaxIdleTime,
-	}
-	db, err := dbCfg.NewConnection()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return db
+	return nil
 }

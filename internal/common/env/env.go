@@ -23,6 +23,7 @@ type EnvVar struct {
 	ApiDBMaxIdleConns    int
 	ApiDBMaxIdleTime     string
 	ApiCorsAllowedOrigin string
+	MemCacheDHost        string
 }
 
 var configInstance *EnvVar //configInstance is the cached instance of EnvVar
@@ -49,6 +50,7 @@ func InitEnvVariables() *EnvVar {
 			ApiDBMaxIdleConns:    getInt("DB_MAX_IDLE_CONNS", 30),
 			ApiDBMaxIdleTime:     getString("DB_MAX_IDLE_TIME", "15m"),
 			ApiCorsAllowedOrigin: getString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
+			MemCacheDHost:        getString("MEMCACHED_HOST", "192.168.0.30:11211"),
 		}
 	})
 	return configInstance
