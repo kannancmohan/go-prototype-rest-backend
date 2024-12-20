@@ -18,13 +18,12 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/env"
 	postgres_memcache "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/memcache/postgres"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
 )
 
 func main() {
-	env := env.InitEnvVariables()
+	env := initEnvVar()
 	initLogger(env) // error ignored on purpose
 
 	db, err := initDB(env)
@@ -32,7 +31,7 @@ func main() {
 		log.Fatalf("Error init db: %s", err)
 	}
 
-	memCached, err := NewMemcached(env)
+	memCached, err := initMemcached(env)
 	if err != nil {
 		log.Fatalf("Error init memcached: %s", err)
 	}
@@ -110,7 +109,7 @@ func handleShutdown(s *http.Server, db *sql.DB, errC chan error) {
 	}()
 }
 
-func initLogger(env *env.EnvVar) error {
+func initLogger(env *EnvVar) error {
 	var level slog.Level
 	err := level.UnmarshalText([]byte(env.LogLevel))
 	if err != nil {

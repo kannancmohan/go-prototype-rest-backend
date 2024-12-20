@@ -1,89 +1,88 @@
-package env
+package common_env
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
-	"strconv"
-	"sync"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
-// Environment variable common to all apps in this project
-type EnvVar struct {
-	ApiPort              string
-	LogLevel             string
-	DBHost               string
-	DBPort               string
-	DBUser               string
-	DBPass               string
-	DBSslMode            string
-	ApiDBName            string
-	ApiDBMaxOpenConns    int
-	ApiDBMaxIdleConns    int
-	ApiDBMaxIdleTime     string
-	ApiCorsAllowedOrigin string
-	MemCacheDHost        string
+type ErrorEnvVarNotFound struct {
+	Key string
 }
 
-var configInstance *EnvVar //configInstance is the cached instance of EnvVar
-var once sync.Once
-
-func InitEnvVariables() *EnvVar {
-	// Ensure the function runs only once
-	once.Do(func() {
-		err := godotenv.Load() // Optionally load from a .env file
-		if err != nil {
-			slog.Info("No .env file found, using system environment variables")
-		}
-
-		configInstance = &EnvVar{
-			ApiPort:              getString("PORT", "8080"),
-			LogLevel:             getString("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
-			DBHost:               getString("DB_HOST", "192.168.0.30"),
-			DBPort:               getString("DB_PORT", "5432"),
-			DBUser:               getString("DB_USER", "admin"),
-			DBPass:               getString("DB_PASS", "adminpassword"),
-			DBSslMode:            getString("DB_SSL_MODE", "disable"),
-			ApiDBName:            getString("API_DB_SCHEMA_NAME", "socialnetwork"),
-			ApiDBMaxOpenConns:    getInt("DB_MAX_OPEN_CONNS", 30),
-			ApiDBMaxIdleConns:    getInt("DB_MAX_IDLE_CONNS", 30),
-			ApiDBMaxIdleTime:     getString("DB_MAX_IDLE_TIME", "15m"),
-			ApiCorsAllowedOrigin: getString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
-			MemCacheDHost:        getString("MEMCACHED_HOST", "192.168.0.30:11211"),
-		}
-	})
-	return configInstance
+func (e *ErrorEnvVarNotFound) Error() string {
+	return fmt.Sprintf("environment variable %q not found", e.Key)
 }
 
-func getString(key, fallback string) string {
-	v, ok := os.LookupEnv(key)
-	if !ok {
-		return fallback
-	}
-	return v
+type SecretManager interface {
+	GetSecret(key string) (string, error)
 }
 
-func getInt(key string, fallback int) int {
-	v, ok := os.LookupEnv(key)
-	if !ok {
-		return fallback
-	}
-	intVal, err := strconv.Atoi(v)
+// EnvFetcher fetches environment variables considering `_SECURE` suffix.
+type envVarFetcher struct {
+	secretManager SecretManager
+}
+
+func NewEnvVarFetcher(envFile string, secretManager SecretManager) *envVarFetcher {
+	err := godotenv.Load(envFile) // loaf envvar from file (eg .env)
 	if err != nil {
-		return fallback
+		slog.Info("No envvar file found..")
 	}
-	return intVal
+	return &envVarFetcher{secretManager: secretManager}
 }
 
-func getBool(key string, fallback bool) bool {
-	v, ok := os.LookupEnv(key)
-	if !ok {
-		return fallback
+func (e *envVarFetcher) GetEnv(key string) (string, error) {
+	// If the key ends with `_SECURE` and a secret manager is provided, fetch from it.
+	if strings.HasSuffix(key, "_SECURE") && e.secretManager != nil {
+		return e.secretManager.GetSecret(key)
 	}
-	boolVal, err := strconv.ParseBool(v)
-	if err != nil {
-		return fallback
+	// Fetch from environment variables.
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		return "", &ErrorEnvVarNotFound{Key: key}
 	}
-	return boolVal
+	return value, nil
 }
+
+func (e *envVarFetcher) GetEnvOrFallback(key, fallback string) string {
+	v, err := e.GetEnv(key)
+	if err == nil {
+		return v
+	}
+	return fallback
+}
+
+// func getString(key, fallback string) string {
+// 	v, ok := os.LookupEnv(key)
+// 	if !ok {
+// 		return fallback
+// 	}
+// 	return v
+// }
+
+// func getInt(key string, fallback int) int {
+// 	v, ok := os.LookupEnv(key)
+// 	if !ok {
+// 		return fallback
+// 	}
+// 	intVal, err := strconv.Atoi(v)
+// 	if err != nil {
+// 		return fallback
+// 	}
+// 	return intVal
+// }
+
+// func getBool(key string, fallback bool) bool {
+// 	v, ok := os.LookupEnv(key)
+// 	if !ok {
+// 		return fallback
+// 	}
+// 	boolVal, err := strconv.ParseBool(v)
+// 	if err != nil {
+// 		return fallback
+// 	}
+// 	return boolVal
+// }
