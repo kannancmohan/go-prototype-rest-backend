@@ -6,7 +6,7 @@ gofmt:
 
 .PHONY: build
 build:
-	@go build -o bin/rest-api cmd/api/main.go
+	@go build -o bin/rest-api cmd/api/*.go
 
 .PHONY: test
 test:

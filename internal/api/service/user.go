@@ -6,13 +6,14 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 )
 
 type userService struct {
-	store UserStore
+	store store.UserStore
 }
 
-func NewUserService(store UserStore) *userService {
+func NewUserService(store store.UserStore) *userService {
 	return &userService{store: store}
 }
 
