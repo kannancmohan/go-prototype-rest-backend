@@ -1,4 +1,4 @@
-package common_db
+package app_common
 
 import (
 	"context"

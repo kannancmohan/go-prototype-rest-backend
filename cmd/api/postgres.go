@@ -3,11 +3,11 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	common_db "github.com/kannancmohan/go-prototype-rest-backend/internal/common/db"
+	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 )
 
 func initDB(env *EnvVar) (*sql.DB, error) {
-	dbCfg := common_db.DBConfig{
+	dbCfg := app_common.DBConfig{
 		Addr:         fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.ApiDBName, env.DBSslMode),
 		MaxOpenConns: env.ApiDBMaxOpenConns,
 		MaxIdleConns: env.ApiDBMaxIdleConns,

@@ -1,4 +1,4 @@
-package common_env
+package app_common
 
 import (
 	"fmt"

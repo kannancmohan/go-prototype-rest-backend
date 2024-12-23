@@ -1,13 +1,9 @@
 package main
 
-import common_env "github.com/kannancmohan/go-prototype-rest-backend/internal/common/env"
+import (
+	"log/slog"
 
-const (
-	DBHost  = "DB_HOST"
-	DBPort  = "DB_PORT"
-	DBUser  = "DB_USER"
-	DBPass  = "DB_PASS"
-	AppPort = "APP_PORT"
+	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 )
 
 type EnvVar struct {
@@ -26,8 +22,21 @@ type EnvVar struct {
 	MemCacheDHost        string
 }
 
+// implement the `LogValuer` interface so as to log only non-sensitive fields
+func (e EnvVar) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("ApiPort", e.ApiPort),
+		slog.String("LogLevel", e.LogLevel),
+		slog.String("DBHost", e.DBHost),
+		slog.Int("ApiDBMaxOpenConns", e.ApiDBMaxOpenConns),
+		slog.Int("ApiDBMaxIdleConns", e.ApiDBMaxIdleConns),
+		slog.String("ApiCorsAllowedOrigin", e.ApiCorsAllowedOrigin),
+		slog.String("MemCacheDHost", e.MemCacheDHost),
+	)
+}
+
 func initEnvVar() *EnvVar {
-	env := common_env.NewEnvVarFetcher("", nil)
+	env := app_common.NewEnvVarFetcher("", nil)
 	return &EnvVar{
 		ApiPort:   env.GetEnvOrFallback("PORT", "8080"),
 		LogLevel:  env.GetEnvOrFallback("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
