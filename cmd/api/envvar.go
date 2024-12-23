@@ -1,12 +1,12 @@
 package main
 
 import (
-	"log/slog"
+	"fmt"
 
 	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 )
 
-type EnvVar struct {
+type ApiEnvVar struct {
 	ApiPort              string
 	LogLevel             string
 	DBHost               string
@@ -22,22 +22,14 @@ type EnvVar struct {
 	MemCacheDHost        string
 }
 
-// implement the `LogValuer` interface so as to log only non-sensitive fields
-func (e EnvVar) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("ApiPort", e.ApiPort),
-		slog.String("LogLevel", e.LogLevel),
-		slog.String("DBHost", e.DBHost),
-		slog.Int("ApiDBMaxOpenConns", e.ApiDBMaxOpenConns),
-		slog.Int("ApiDBMaxIdleConns", e.ApiDBMaxIdleConns),
-		slog.String("ApiCorsAllowedOrigin", e.ApiCorsAllowedOrigin),
-		slog.String("MemCacheDHost", e.MemCacheDHost),
-	)
+// string representation to hide sensitive fields.
+func (e ApiEnvVar) String() string {
+	return fmt.Sprintf("EnvVar{ApiPort: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, MemCacheDHost: %s}", e.ApiPort, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.MemCacheDHost)
 }
 
-func initEnvVar() *EnvVar {
+func initApiEnvVar() *ApiEnvVar {
 	env := app_common.NewEnvVarFetcher("", nil)
-	return &EnvVar{
+	return &ApiEnvVar{
 		ApiPort:   env.GetEnvOrFallback("PORT", "8080"),
 		LogLevel:  env.GetEnvOrFallback("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
 		DBHost:    env.GetEnvOrFallback("DB_HOST", "192.168.0.30"),

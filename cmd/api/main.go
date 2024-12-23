@@ -23,7 +23,7 @@ import (
 )
 
 func main() {
-	env := initEnvVar()
+	env := initApiEnvVar()
 	initLogger(env) // error ignored on purpose
 
 	db, err := initDB(env)
@@ -109,7 +109,7 @@ func handleShutdown(s *http.Server, db *sql.DB, errC chan error) {
 	}()
 }
 
-func initLogger(env *EnvVar) error {
+func initLogger(env *ApiEnvVar) error {
 	var level slog.Level
 	err := level.UnmarshalText([]byte(env.LogLevel))
 	if err != nil {

@@ -9,39 +9,63 @@ chi http router : github.com/go-chi/chi/v5
 
 ## Project Structure
 ```
-rest-backend/
-├── cmd/
-│   ├── api-server/
+rest-backend
+├── cmd
+│   ├── api
+│   │   ├── envvar.go
 │   │   ├── main.go
-│   │   └── ...
-│   └── db-migration/
-│       ├── main.go
-│       └── migration/
-├── internal/
-│   ├── common/
-│   │   ├── config/
-│   │   │   └── env.go
-│   │   └── db/
-│   │   │   └── db.go
-│   ├── api-server/
-│   │   ├── handler/
-│   │   │   ├── user_handler.go
-│   │   │   └── ...
-│   │   ├── service/
-│   │   └── router.go
-│   └── db-migration/
-│       ├── migration/
-│       └── ...
-├── infra/
-│   ├── Dockerfile
-│   └── k8s/
-│       └── ...
-├── go.mod
-├── go.sum
+│   │   ├── memcache.go
+│   │   └── postgres.go
+│   ├── internal
+│   │   └── common
+│   │       ├── db.go
+│   │       └── env.go
+│   └── migrate
+│       └── migrations
+├── devops
+│   ├── docker
+│   │   └── Dockerfile
+│   ├── helm
+│   └── scripts
+├── internal
+│   ├── api
+│   │   ├── common
+│   │   │   └── error.go
+│   │   ├── config
+│   │   │   └── config.go
+│   │   ├── domain
+│   │   │   └── model
+│   │   │       ├── post.go
+│   │   │       └── user.go
+│   │   ├── dto
+│   │   │   └── user.go
+│   │   ├── handler
+│   │   │   ├── handlers.go
+│   │   │   ├── posts.go
+│   │   │   └── users.go
+│   │   ├── router.go
+│   │   ├── service
+│   │   │   ├── posts.go
+│   │   │   └── user.go
+│   │   └── store
+│   │       └── store.go
+│   └── infrastructure
+│       ├── envvar
+│       ├── memcache
+│       │   └── postgres
+│       │       ├── posts.go
+│       │       ├── roles.go
+│       │       └── users.go
+│       └── postgres
+│           ├── posts.go
+│           ├── roles.go
+│           └── users.go
 ├── Makefile
 ├── README.md
-└── shell.nix #to spawn a shell environment with specific tools and dependencies
-
+├── docker-compose-postgres.yml
+├── go.mod
+├── go.sum
+└── shell.nix
 ```
 ## Project setup 
 

@@ -6,7 +6,7 @@ import (
 	"github.com/bradfitz/gomemcache/memcache"
 )
 
-func initMemcached(env *EnvVar) (*memcache.Client, error) {
+func initMemcached(env *ApiEnvVar) (*memcache.Client, error) {
 	client := memcache.New(env.MemCacheDHost)
 	if err := client.Ping(); err != nil {
 		return nil, err
