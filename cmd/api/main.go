@@ -19,7 +19,7 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
-	postgres_memcache "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/memcache/postgres"
+	memcache_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/memcache/postgres"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
 )
 
@@ -58,10 +58,10 @@ func main() {
 func newServer(cfg *config.ApiConfig, db *sql.DB, memClient *memcache.Client) (*http.Server, error) {
 
 	pStore := postgres.NewPostStore(db, cfg)
-	cachedPStore := postgres_memcache.NewPostStore(memClient, pStore, cfg)
+	cachedPStore := memcache_postgres.NewPostStore(memClient, pStore, cfg)
 	//rStore := store.NewRoleStore(db)
 	uStore := postgres.NewUserStore(db, cfg)
-	cachedUStore := postgres_memcache.NewUserStore(memClient, uStore, cfg)
+	cachedUStore := memcache_postgres.NewUserStore(memClient, uStore, cfg)
 
 	pService := service.NewPostService(cachedPStore)
 	uService := service.NewUserService(cachedUStore)
