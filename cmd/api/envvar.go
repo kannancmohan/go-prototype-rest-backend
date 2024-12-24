@@ -20,11 +20,13 @@ type ApiEnvVar struct {
 	ApiDBMaxIdleTime     string
 	ApiCorsAllowedOrigin string
 	MemCacheDHost        string
+	RedisHost            string
+	RedisDB              string
 }
 
 // string representation to hide sensitive fields.
 func (e ApiEnvVar) String() string {
-	return fmt.Sprintf("EnvVar{ApiPort: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, MemCacheDHost: %s}", e.ApiPort, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.MemCacheDHost)
+	return fmt.Sprintf("EnvVar{ApiPort: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, MemCacheDHost: %s, RedisHost: %s, RedisDB: %s}", e.ApiPort, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.MemCacheDHost, e.RedisHost, e.RedisDB)
 }
 
 func initApiEnvVar() *ApiEnvVar {
@@ -43,5 +45,7 @@ func initApiEnvVar() *ApiEnvVar {
 		ApiDBMaxIdleTime:     env.GetEnvOrFallback("DB_MAX_IDLE_TIME", "15m"),
 		ApiCorsAllowedOrigin: env.GetEnvOrFallback("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
 		MemCacheDHost:        env.GetEnvOrFallback("MEMCACHED_HOST", "192.168.0.30:11211"),
+		RedisHost:            env.GetEnvOrFallback("REDIS_HOST", "192.168.0.30:6379"),
+		RedisDB:              env.GetEnvOrFallback("REDIS_DB", "socialnetwork"),
 	}
 }

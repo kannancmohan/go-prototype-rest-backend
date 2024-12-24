@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
+	"github.com/go-redis/redis/v8"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
@@ -36,14 +37,18 @@ func main() {
 		log.Fatalf("Error init memcached: %s", err)
 	}
 
+	redis, err := initRedis(env)
+	if err != nil {
+		log.Fatalf("Error init redis: %s", err)
+	}
 	conf := &config.ApiConfig{
 		Addr:                    fmt.Sprintf(":%s", env.ApiPort),
 		CorsAllowedOrigin:       env.ApiCorsAllowedOrigin,
 		SqlQueryTimeoutDuration: time.Second * 5,
 	}
 	s, _ := newServer(conf, db, memCached)
-	errC := make(chan error, 1) //channel to capture error while start/kill application
-	handleShutdown(s, db, errC) //gracefully shutting down applications in response to system signals
+	errC := make(chan error, 1)        //channel to capture error while start/kill application
+	handleShutdown(s, db, redis, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
 	if err := <-errC; err != nil {
 		log.Fatalf("Error while running: %s", err)
@@ -84,7 +89,7 @@ func startServer(s *http.Server, errC chan error) {
 	}()
 }
 
-func handleShutdown(s *http.Server, db *sql.DB, errC chan error) {
+func handleShutdown(s *http.Server, db *sql.DB, redis *redis.Client, errC chan error) {
 	// create notification context that terminates if one of the mentioned signal(eg os.Interrup) is triggered
 	ntyCtx, ntyStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
@@ -92,8 +97,8 @@ func handleShutdown(s *http.Server, db *sql.DB, errC chan error) {
 		slog.Info("Shutdown signal received")
 
 		ctxTimeout, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer closeResources(db, redis)
 		defer func() {
-			db.Close()
 			ntyStop()
 			ctxCancel()
 			close(errC) //close the errC channel
@@ -118,4 +123,15 @@ func initLogger(env *ApiEnvVar) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
 	return nil
+}
+
+func closeResources(db *sql.DB, redis *redis.Client) {
+	if db != nil {
+		db.Close()
+		slog.Info("Database connection closed")
+	}
+	if redis != nil {
+		redis.Close()
+		slog.Info("Redis client connection closed")
+	}
 }
