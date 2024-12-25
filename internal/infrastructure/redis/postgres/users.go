@@ -35,7 +35,6 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 		if err != nil {
 			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to unmarshal user from cache")
 		}
-		fmt.Println("cache hit....")
 		return user, nil
 	} else if err != redis.Nil { // Redis error (other than a cache miss)
 		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "redis get failed")

@@ -13,13 +13,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/bradfitz/gomemcache/memcache"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
-	memcache_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/memcache/postgres"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
+	redis_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/redis/postgres"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -32,11 +31,6 @@ func main() {
 		log.Fatalf("Error init db: %s", err)
 	}
 
-	memcache, err := initMemcached(env)
-	if err != nil {
-		log.Fatalf("Error init memcached: %s", err)
-	}
-
 	redis, err := initRedis(env)
 	if err != nil {
 		log.Fatalf("Error init redis: %s", err)
@@ -47,7 +41,7 @@ func main() {
 		SqlQueryTimeoutDuration: time.Second * 5,
 		RedisCacheTTL:           time.Minute * 5,
 	}
-	s, _ := newServer(conf, db, memcache)
+	s, _ := newServer(conf, db, redis)
 	errC := make(chan error, 1)        //channel to capture error while start/kill application
 	handleShutdown(s, db, redis, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
@@ -56,14 +50,14 @@ func main() {
 	}
 }
 
-func newServer(cfg *config.ApiConfig, db *sql.DB, memClient *memcache.Client) (*http.Server, error) {
+func newServer(cfg *config.ApiConfig, db *sql.DB, redis *redis.Client) (*http.Server, error) {
 
 	pStore := postgres.NewPostStore(db, cfg)
 	uStore := postgres.NewUserStore(db, cfg)
 	//rStore := store.NewRoleStore(db)
 
-	cachedPStore := memcache_postgres.NewPostStore(memClient, pStore, cfg)
-	cachedUStore := memcache_postgres.NewUserStore(memClient, uStore, cfg)
+	cachedPStore := redis_postgres.NewPostStore(redis, pStore, cfg)
+	cachedUStore := redis_postgres.NewUserStore(redis, uStore, cfg)
 
 	pService := service.NewPostService(cachedPStore)
 	uService := service.NewUserService(cachedUStore)
