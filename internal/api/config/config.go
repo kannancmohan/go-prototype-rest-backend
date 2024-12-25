@@ -6,6 +6,7 @@ type ApiConfig struct {
 	Addr                    string
 	CorsAllowedOrigin       string
 	SqlQueryTimeoutDuration time.Duration
+	RedisCacheTTL           time.Duration
 	// db   db.DBConfig
 	// env         string
 	// apiURL      string

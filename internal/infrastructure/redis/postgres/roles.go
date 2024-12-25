@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/go-redis/redis/v8"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	"github.com/redis/go-redis/v9"
 )
 
 type roleStore struct {

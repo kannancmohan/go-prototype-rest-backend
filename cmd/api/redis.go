@@ -4,7 +4,7 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/redis/go-redis/v9"
 )
 
 func initRedis(env *ApiEnvVar) (*redis.Client, error) {

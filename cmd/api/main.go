@@ -14,13 +14,13 @@ import (
 	"time"
 
 	"github.com/bradfitz/gomemcache/memcache"
-	"github.com/go-redis/redis/v8"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
 	memcache_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/memcache/postgres"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 		log.Fatalf("Error init db: %s", err)
 	}
 
-	memCached, err := initMemcached(env)
+	memcache, err := initMemcached(env)
 	if err != nil {
 		log.Fatalf("Error init memcached: %s", err)
 	}
@@ -45,8 +45,9 @@ func main() {
 		Addr:                    fmt.Sprintf(":%s", env.ApiPort),
 		CorsAllowedOrigin:       env.ApiCorsAllowedOrigin,
 		SqlQueryTimeoutDuration: time.Second * 5,
+		RedisCacheTTL:           time.Minute * 5,
 	}
-	s, _ := newServer(conf, db, memCached)
+	s, _ := newServer(conf, db, memcache)
 	errC := make(chan error, 1)        //channel to capture error while start/kill application
 	handleShutdown(s, db, redis, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
@@ -58,9 +59,10 @@ func main() {
 func newServer(cfg *config.ApiConfig, db *sql.DB, memClient *memcache.Client) (*http.Server, error) {
 
 	pStore := postgres.NewPostStore(db, cfg)
-	cachedPStore := memcache_postgres.NewPostStore(memClient, pStore, cfg)
-	//rStore := store.NewRoleStore(db)
 	uStore := postgres.NewUserStore(db, cfg)
+	//rStore := store.NewRoleStore(db)
+
+	cachedPStore := memcache_postgres.NewPostStore(memClient, pStore, cfg)
 	cachedUStore := memcache_postgres.NewUserStore(memClient, uStore, cfg)
 
 	pService := service.NewPostService(cachedPStore)
