@@ -43,21 +43,29 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 }
 
 func (s *userStore) Create(ctx context.Context, user *model.User) error {
+	//TODO add transaction for atomicity ??
 	if err := s.orig.Create(ctx, user); err != nil {
 		return err
 	}
-	cacheKey := userCacheKey(user.ID)
 	userJSON, err := json.Marshal(user)
 	if err != nil {
 		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal user")
 	}
-	err = s.client.Set(ctx, cacheKey, userJSON, s.config.RedisCacheTTL).Err()
+
+	cacheKey := userCacheKey(user.ID)
+	emailCacheKey := userCacheKey(user.Email)
+	// Use Redis pipeline with a transaction
+	pipe := s.client.TxPipeline()
+	pipe.Set(ctx, cacheKey, userJSON, s.config.RedisCacheTTL)     // cache user
+	pipe.Set(ctx, emailCacheKey, user.ID, s.config.RedisCacheTTL) // cache user:email
+	_, err = pipe.Exec(ctx)                                       // Atomically executes all commands in the pipeline
 	if err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to set user cache")
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to cache user create")
 	}
+
 	return nil
 }
 
-func userCacheKey(userID int64) string {
-	return fmt.Sprintf("user:%d", userID)
+func userCacheKey(value any) string {
+	return fmt.Sprintf("user:%v", value)
 }
