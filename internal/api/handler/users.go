@@ -14,6 +14,13 @@ type RegisterUserPayload struct {
 	Role     string `json:"role" validate:"required,oneof=user admin moderator"`
 }
 
+type UpdateUserPayload struct {
+	Username string `json:"username" validate:"omitempty,max=100"`
+	Email    string `json:"email" validate:"omitempty,email,max=255"`
+	Password string `json:"password" validate:"omitempty,min=3,max=72"`
+	Role     string `json:"role" validate:"omitempty,oneof=user admin moderator"`
+}
+
 type UserHandler struct {
 	service UserService
 }
@@ -41,6 +48,34 @@ func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	renderResponse(w, http.StatusCreated, u)
+}
+
+func (h *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := getIntParam("userID", r)
+	if err != nil {
+		renderErrorResponse(w, "invalid request", err)
+		return
+	}
+
+	payload, err := readJSONValid[UpdateUserPayload](w, r)
+	if err != nil {
+		renderErrorResponse(w, "invalid request", err)
+		return
+	}
+	ctx := r.Context()
+	u, err := h.service.Update(ctx, dto.UpdateUserRequest{
+		ID:       id,
+		Username: payload.Username,
+		Email:    payload.Email,
+		Password: payload.Password,
+		Role:     payload.Role,
+	})
+
+	if err != nil {
+		renderErrorResponse(w, "update failed", err)
+		return
+	}
+	renderResponse(w, http.StatusOK, u)
 }
 
 func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {

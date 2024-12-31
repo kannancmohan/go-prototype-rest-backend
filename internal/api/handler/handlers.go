@@ -25,6 +25,7 @@ func init() {
 type UserService interface {
 	GetByID(context.Context, int64) (*model.User, error)
 	CreateAndInvite(context.Context, dto.CreateUserRequest) (*model.User, error)
+	Update(context.Context, dto.UpdateUserRequest) (*model.User, error)
 }
 
 type PostService interface {

@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
@@ -95,4 +96,83 @@ func (s *userStore) Create(ctx context.Context, user *model.User) error {
 	}
 
 	return nil
+}
+
+func (s *userStore) Update(ctx context.Context, user *model.User) (*model.User, error) {
+	var updatedUser *model.User
+
+	err := withTx(s.db, ctx, func(tx *sql.Tx) error {
+		query := `
+			UPDATE users
+			SET updated_at = NOW()
+		`
+		args := []interface{}{}
+		argIndex := 1
+
+		// Dynamically add fields to update
+		if user.Username != "" {
+			query += `, username = $` + fmt.Sprint(argIndex)
+			args = append(args, user.Username)
+			argIndex++
+		}
+
+		if len(user.Password.Hash) > 0 {
+			query += `, password = $` + fmt.Sprint(argIndex)
+			args = append(args, user.Password.Hash)
+			argIndex++
+		}
+
+		if user.Email != "" {
+			query += `, email = $` + fmt.Sprint(argIndex)
+			args = append(args, user.Email)
+			argIndex++
+		}
+
+		if user.Role.Name != "" {
+			query += `, role_id = (SELECT id FROM roles WHERE name = $` + fmt.Sprint(argIndex) + `)`
+			args = append(args, user.Role.Name)
+			argIndex++
+		}
+
+		query += ` WHERE id = $` + fmt.Sprint(argIndex)
+		args = append(args, user.ID)
+
+		query += ` RETURNING id, username, email, role_id, created_at, updated_at`
+
+		var roleID int
+		err := tx.QueryRowContext(ctx, query, args...).Scan(
+			&user.ID,
+			&user.Username,
+			&user.Email,
+			&roleID,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			switch {
+			case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
+				return common.ErrDuplicateEmail
+			case err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"`:
+				return common.ErrDuplicateUsername
+			default:
+				return common.WrapErrorf(err, common.ErrorCodeUnknown, "update user")
+			}
+		}
+
+		var roleName string
+		err = tx.QueryRowContext(ctx, `SELECT name FROM roles WHERE id = $1`, roleID).Scan(&roleName)
+		if err != nil {
+			return common.WrapErrorf(err, common.ErrorCodeUnknown, "fetch role name for user")
+		}
+
+		user.Role = model.Role{Name: roleName}
+		updatedUser = user
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return updatedUser, nil
 }

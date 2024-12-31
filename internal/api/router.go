@@ -72,6 +72,7 @@ func (rt *router) RegisterHandlers() http.Handler {
 				//r.Use(app.AuthTokenMiddleware)
 
 				r.Get("/", rt.handler.UserHandler.GetUserHandler)
+				r.Put("/", rt.handler.UserHandler.UpdateUserHandler)
 				//r.Put("/follow", app.followUserHandler)
 				//r.Put("/unfollow", app.unfollowUserHandler)
 			})

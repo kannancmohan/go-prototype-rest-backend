@@ -44,3 +44,27 @@ func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUse
 	}
 	return user, nil
 }
+
+func (u *userService) Update(ctx context.Context, payload dto.UpdateUserRequest) (*model.User, error) {
+	user := &model.User{
+		ID:       payload.ID,
+		Username: payload.Username,
+		Email:    payload.Email,
+		Role: model.Role{
+			Name: payload.Role,
+		},
+	}
+
+	// hash the user password
+	if payload.Password != "" {
+		if err := user.Password.Set(payload.Password); err != nil {
+			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error hashing password")
+		}
+	}
+
+	updatedUser, err := u.store.Update(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+	return updatedUser, nil
+}
