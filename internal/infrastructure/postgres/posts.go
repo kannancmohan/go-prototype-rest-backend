@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
@@ -51,4 +52,88 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 	}
 
 	return &post, nil
+}
+
+func (s *postStore) Create(ctx context.Context, post *model.Post) error {
+	query := `
+	INSERT INTO posts (content, title, user_id, tags)
+	VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at
+`
+
+	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
+	defer cancel()
+
+	err := s.db.QueryRowContext(
+		ctx,
+		query,
+		post.Content,
+		post.Title,
+		post.UserID,
+		pq.Array(post.Tags),
+	).Scan(
+		&post.ID,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+	)
+	if err != nil {
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "create post")
+	}
+
+	return nil
+}
+
+func (s *postStore) Update(ctx context.Context, post *model.Post) (*model.Post, error) {
+	var updatedPost model.Post
+
+	query := `UPDATE posts SET updated_at = NOW(), version = version + 1`
+	args := []interface{}{}
+	argIndex := 1
+
+	// Dynamically add fields to update
+	if post.Title != "" {
+		query += `, title = $` + fmt.Sprint(argIndex)
+		args = append(args, post.Title)
+		argIndex++
+	}
+
+	if post.Content != "" {
+		query += `, content = $` + fmt.Sprint(argIndex)
+		args = append(args, post.Content)
+		argIndex++
+	}
+
+	if len(post.Tags) > 0 {
+		query += `, tags = $` + fmt.Sprint(argIndex)
+		args = append(args, pq.Array(post.Tags))
+		argIndex++
+	}
+
+	query += ` WHERE id = $` + fmt.Sprint(argIndex)
+	args = append(args, post.ID)
+
+	query += ` RETURNING id, user_id, title, content, created_at, updated_at, tags, version`
+
+	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
+	defer cancel()
+
+	err := s.db.QueryRowContext(ctx, query, args...).Scan(
+		&updatedPost.ID,
+		&updatedPost.UserID,
+		&updatedPost.Title,
+		&updatedPost.Content,
+		&updatedPost.CreatedAt,
+		&updatedPost.UpdatedAt,
+		pq.Array(&updatedPost.Tags),
+		&updatedPost.Version,
+	)
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, common.ErrNotFound
+		default:
+			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "update post")
+		}
+	}
+
+	return &updatedPost, nil
 }

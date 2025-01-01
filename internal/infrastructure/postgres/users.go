@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
@@ -154,6 +155,8 @@ func (s *userStore) Update(ctx context.Context, user *model.User) (*model.User, 
 				return common.ErrDuplicateEmail
 			case err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"`:
 				return common.ErrDuplicateUsername
+			case errors.Is(err, sql.ErrNoRows):
+				return common.ErrNotFound
 			default:
 				return common.WrapErrorf(err, common.ErrorCodeUnknown, "update user")
 			}

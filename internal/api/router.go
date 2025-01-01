@@ -54,12 +54,12 @@ func (rt *router) RegisterHandlers() http.Handler {
 
 		r.Route("/posts", func(r chi.Router) {
 			// r.Use(app.AuthTokenMiddleware)
-			// r.Post("/", app.createPostHandler)
+			r.Post("/", rt.handler.PostHandler.CreatePostHandler)
 
 			r.Route("/{postID}", func(r chi.Router) {
 				//r.Use(app.postsContextMiddleware)
 				r.Get("/", rt.handler.PostHandler.GetPostHandler)
-
+				r.Put("/", rt.handler.PostHandler.UpdatePostHandler)
 				// r.Patch("/", app.checkPostOwnership("moderator", app.updatePostHandler))
 				// r.Delete("/", app.checkPostOwnership("admin", app.deletePostHandler))
 			})

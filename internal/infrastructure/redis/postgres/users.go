@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
@@ -35,11 +36,19 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 		if err != nil {
 			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to unmarshal user from cache")
 		}
+		slog.Debug("retrieved user from cache", "userID", userID)
 		return user, nil
 	} else if err != redis.Nil { // Redis error (other than a cache miss)
 		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "redis get failed")
 	}
-	return s.orig.GetByID(ctx, userID)
+	u, err := s.orig.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.cacheUser(ctx, u); err != nil {
+		return nil, err
+	}
+	return u, nil
 }
 
 func (s *userStore) Create(ctx context.Context, user *model.User) error {
@@ -47,20 +56,8 @@ func (s *userStore) Create(ctx context.Context, user *model.User) error {
 	if err := s.orig.Create(ctx, user); err != nil {
 		return err
 	}
-	userJSON, err := json.Marshal(user)
-	if err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal user")
-	}
-
-	cacheKey := userCacheKey(user.ID)
-	emailCacheKey := userCacheKey(user.Email)
-	// Use Redis pipeline with a transaction
-	pipe := s.client.TxPipeline()
-	pipe.Set(ctx, cacheKey, userJSON, s.config.RedisCacheTTL)     // cache user
-	pipe.Set(ctx, emailCacheKey, user.ID, s.config.RedisCacheTTL) // cache user:email
-	_, err = pipe.Exec(ctx)                                       // Atomically executes all commands in the pipeline
-	if err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to cache user create")
+	if err := s.cacheUser(ctx, user); err != nil {
+		return err
 	}
 
 	return nil
@@ -72,25 +69,30 @@ func (s *userStore) Update(ctx context.Context, user *model.User) (*model.User, 
 	if err != nil {
 		return nil, err
 	}
-	userJSON, err := json.Marshal(u)
-	if err != nil {
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal user")
+	if err := s.cacheUser(ctx, u); err != nil {
+		return nil, err
 	}
-
-	cacheKey := userCacheKey(u.ID)
-	emailCacheKey := userCacheKey(u.Email)
-	// Use Redis pipeline with a transaction
-	pipe := s.client.TxPipeline()
-	pipe.Set(ctx, cacheKey, userJSON, s.config.RedisCacheTTL)  // cache user
-	pipe.Set(ctx, emailCacheKey, u.ID, s.config.RedisCacheTTL) // cache user:email
-	_, err = pipe.Exec(ctx)                                    // Atomically executes all commands in the pipeline
-	if err != nil {
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to cache user update")
-	}
-
 	return u, nil
 }
 
 func userCacheKey(value any) string {
 	return fmt.Sprintf("user:%v", value)
+}
+
+func (s *userStore) cacheUser(ctx context.Context, user *model.User) error {
+	userJSON, err := json.Marshal(user)
+	if err != nil {
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal user")
+	}
+	cacheKey := userCacheKey(user.ID)
+	emailCacheKey := userCacheKey(user.Email)
+	// Use Redis pipeline with a transaction
+	pipe := s.client.TxPipeline()
+	pipe.Set(ctx, cacheKey, userJSON, s.config.RedisCacheTTL)     // cache user
+	pipe.Set(ctx, emailCacheKey, user.ID, s.config.RedisCacheTTL) // cache user:email
+	_, err = pipe.Exec(ctx)                                       // Atomically executes all commands in the pipeline
+	if err != nil {
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to cache user update")
+	}
+	return nil
 }
