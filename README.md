@@ -2,10 +2,10 @@
 A rest backend app build using golang.
 
 ## Tech Stack 
-
-golang : 1.22
-chi http router : github.com/go-chi/chi/v5
-
+| Item              | version  | desc                     |
+| :---------------- | :------: | -----------------------: |
+| golang            |   1.22   |                          |
+| chi - http router |          | github.com/go-chi/chi/v5 |
 
 ## Project Structure
 ```

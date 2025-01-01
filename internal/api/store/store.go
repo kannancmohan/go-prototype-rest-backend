@@ -8,6 +8,8 @@ import (
 
 type PostStore interface {
 	GetByID(context.Context, int64) (*model.Post, error)
+	Create(context.Context, *model.Post) error
+	Update(context.Context, *model.Post) (*model.Post, error)
 }
 
 type RoleStore interface {

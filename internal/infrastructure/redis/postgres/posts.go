@@ -25,3 +25,13 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 	//TODO add caching logic
 	return s.orig.GetByID(ctx, id)
 }
+
+func (s *postStore) Create(ctx context.Context, post *model.Post) error {
+	// TODO add caching logic
+	return s.orig.Create(ctx, post)
+}
+
+func (s *postStore) Update(ctx context.Context, post *model.Post) (*model.Post, error) {
+	//TODO add caching logic
+	return s.orig.Update(ctx, post)
+}
