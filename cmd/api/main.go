@@ -60,19 +60,19 @@ func main() {
 
 func newServer(cfg *config.ApiConfig, db *sql.DB, redis *redis.Client, kafkaProd *kafka.Producer) (*http.Server, error) {
 
-	pStore := postgres.NewPostStore(db, cfg)
-	uStore := postgres.NewUserStore(db, cfg)
+	pStore := postgres.NewPostStore(db, cfg.SqlQueryTimeoutDuration)
+	uStore := postgres.NewUserStore(db, cfg.SqlQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
 
-	cachedPStore := redis_postgres.NewPostStore(redis, pStore, cfg)
-	cachedUStore := redis_postgres.NewUserStore(redis, uStore, cfg)
+	cachedPStore := redis_postgres.NewPostStore(redis, pStore, cfg.RedisCacheTTL)
+	cachedUStore := redis_postgres.NewUserStore(redis, uStore, cfg.RedisCacheTTL)
 
 	pService := service.NewPostService(cachedPStore, infrastructure_kafka.NewPostMessageBrokerStore(kafkaProd, cfg.KafkaProdTopic))
 	uService := service.NewUserService(cachedUStore)
 
 	handler := handler.NewHandler(uService, pService)
 
-	router := api.NewRouter(handler, cfg)
+	router := api.NewRouter(handler, cfg.CorsAllowedOrigin)
 	routes := router.RegisterHandlers()
 	return &http.Server{
 		Addr:         cfg.Addr,

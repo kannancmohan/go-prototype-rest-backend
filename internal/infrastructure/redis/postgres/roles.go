@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 	"github.com/redis/go-redis/v9"
@@ -14,11 +13,10 @@ type roleStore struct {
 	client     *redis.Client
 	orig       store.RoleStore
 	expiration time.Duration
-	config     *config.ApiConfig
 }
 
-func NewRoleStore(client *redis.Client, orig store.RoleStore, cfg *config.ApiConfig) *roleStore {
-	return &roleStore{client: client, orig: orig, expiration: 10 * time.Minute, config: cfg} //TODO
+func NewRoleStore(client *redis.Client, orig store.RoleStore, expiration time.Duration) *roleStore {
+	return &roleStore{client: client, orig: orig, expiration: expiration} //TODO
 }
 
 func (s *roleStore) GetByName(ctx context.Context, slug string) (*model.Role, error) {

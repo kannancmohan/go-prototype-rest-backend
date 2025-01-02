@@ -5,20 +5,20 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/lib/pq"
 )
 
 type postStore struct {
-	db     *sql.DB
-	config *config.ApiConfig
+	db                      *sql.DB
+	sqlQueryTimeoutDuration time.Duration
 }
 
-func NewPostStore(db *sql.DB, cfg *config.ApiConfig) *postStore {
-	return &postStore{db: db, config: cfg}
+func NewPostStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *postStore {
+	return &postStore{db: db, sqlQueryTimeoutDuration: sqlQueryTimeoutDuration}
 }
 
 func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) {
@@ -28,7 +28,7 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 		WHERE id = $1
 	`
 
-	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
 	defer cancel()
 
 	var post model.Post
@@ -60,7 +60,7 @@ func (s *postStore) Create(ctx context.Context, post *model.Post) error {
 	VALUES ($1, $2, $3, $4) RETURNING id, created_at, updated_at
 `
 
-	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
 	defer cancel()
 
 	err := s.db.QueryRowContext(
@@ -113,7 +113,7 @@ func (s *postStore) Update(ctx context.Context, post *model.Post) (*model.Post, 
 
 	query += ` RETURNING id, user_id, title, content, created_at, updated_at, tags, version`
 
-	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
 	defer cancel()
 
 	err := s.db.QueryRowContext(ctx, query, args...).Scan(
