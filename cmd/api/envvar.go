@@ -7,7 +7,7 @@ import (
 )
 
 type ApiEnvVar struct {
-	ApiPort              string
+	ApiAddr              string
 	LogLevel             string
 	DBHost               string
 	DBPort               string
@@ -28,13 +28,13 @@ type ApiEnvVar struct {
 
 // string representation to hide sensitive fields.
 func (e ApiEnvVar) String() string {
-	return fmt.Sprintf("EnvVar{ApiPort: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, MemCacheDHost: %s, RedisHost: %s, RedisDB: %s}", e.ApiPort, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.MemCacheDHost, e.RedisHost, e.RedisDB)
+	return fmt.Sprintf("EnvVar{ApiAddr: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, MemCacheDHost: %s, RedisHost: %s, RedisDB: %s}", e.ApiAddr, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.MemCacheDHost, e.RedisHost, e.RedisDB)
 }
 
 func initApiEnvVar() *ApiEnvVar {
 	env := app_common.NewEnvVarFetcher("", nil)
 	return &ApiEnvVar{
-		ApiPort:   env.GetEnvOrFallback("PORT", "8080"),
+		ApiAddr:   fmt.Sprintf(":%s", env.GetEnvOrFallback("PORT", "8080")),
 		LogLevel:  env.GetEnvOrFallback("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
 		DBHost:    env.GetEnvOrFallback("DB_HOST", "192.168.0.30"),
 		DBPort:    env.GetEnvOrFallback("DB_PORT", "5432"),
