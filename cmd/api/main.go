@@ -42,14 +42,14 @@ func main() {
 		log.Fatalf("Error init kafka producer: %s", err)
 	}
 
-	pStore := postgres.NewPostStore(db, time.Second*5)
-	uStore := postgres.NewUserStore(db, time.Second*5)
+	pStore := postgres.NewPostStore(db, env.ApiDBQueryTimeoutDuration)
+	uStore := postgres.NewUserStore(db, env.ApiDBQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
 
 	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(kafkaProd, env.KafkaProdTopic)
 
-	cachedPStore := redis_postgres.NewPostStore(redis, pStore, time.Minute*5)
-	cachedUStore := redis_postgres.NewUserStore(redis, uStore, time.Minute*5)
+	cachedPStore := redis_postgres.NewPostStore(redis, pStore, env.ApiRedisCacheExpirationDuration)
+	cachedUStore := redis_postgres.NewUserStore(redis, uStore, env.ApiRedisCacheExpirationDuration)
 
 	s, _ := newServer(env, cachedPStore, cachedUStore, messageBrokerStore)
 	errC := make(chan error, 1)        //channel to capture error while start/kill application
