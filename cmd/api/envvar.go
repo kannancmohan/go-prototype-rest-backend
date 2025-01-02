@@ -22,6 +22,8 @@ type ApiEnvVar struct {
 	MemCacheDHost        string
 	RedisHost            string
 	RedisDB              string
+	KafkaHost            string
+	KafkaProdTopic       string
 }
 
 // string representation to hide sensitive fields.
@@ -47,5 +49,7 @@ func initApiEnvVar() *ApiEnvVar {
 		MemCacheDHost:        env.GetEnvOrFallback("MEMCACHED_HOST", "192.168.0.30:11211"),
 		RedisHost:            env.GetEnvOrFallback("REDIS_HOST", "192.168.0.30:6379"),
 		RedisDB:              env.GetEnvOrFallback("REDIS_DB", "socialnetwork"),
+		KafkaHost:            env.GetEnvOrFallback("KAFKA_HOST", "192.168.0.30:9093"),
+		KafkaProdTopic:       env.GetEnvOrFallback("API_KAFKA_TOPIC", "posts"),
 	}
 }

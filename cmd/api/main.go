@@ -13,10 +13,12 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
+	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
 	redis_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/redis/postgres"
 	"github.com/redis/go-redis/v9"
@@ -35,13 +37,19 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error init redis: %s", err)
 	}
+
+	kafkaProd, err := initKafkaProducer(env)
+	if err != nil {
+		log.Fatalf("Error init kafka producer: %s", err)
+	}
 	conf := &config.ApiConfig{
 		Addr:                    fmt.Sprintf(":%s", env.ApiPort),
 		CorsAllowedOrigin:       env.ApiCorsAllowedOrigin,
 		SqlQueryTimeoutDuration: time.Second * 5,
 		RedisCacheTTL:           time.Minute * 5,
+		KafkaProdTopic:          env.KafkaProdTopic,
 	}
-	s, _ := newServer(conf, db, redis)
+	s, _ := newServer(conf, db, redis, kafkaProd)
 	errC := make(chan error, 1)        //channel to capture error while start/kill application
 	handleShutdown(s, db, redis, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
@@ -50,7 +58,7 @@ func main() {
 	}
 }
 
-func newServer(cfg *config.ApiConfig, db *sql.DB, redis *redis.Client) (*http.Server, error) {
+func newServer(cfg *config.ApiConfig, db *sql.DB, redis *redis.Client, kafkaProd *kafka.Producer) (*http.Server, error) {
 
 	pStore := postgres.NewPostStore(db, cfg)
 	uStore := postgres.NewUserStore(db, cfg)
@@ -59,7 +67,7 @@ func newServer(cfg *config.ApiConfig, db *sql.DB, redis *redis.Client) (*http.Se
 	cachedPStore := redis_postgres.NewPostStore(redis, pStore, cfg)
 	cachedUStore := redis_postgres.NewUserStore(redis, uStore, cfg)
 
-	pService := service.NewPostService(cachedPStore)
+	pService := service.NewPostService(cachedPStore, infrastructure_kafka.NewPostMessageBrokerStore(kafkaProd, cfg.KafkaProdTopic))
 	uService := service.NewUserService(cachedUStore)
 
 	handler := handler.NewHandler(uService, pService)

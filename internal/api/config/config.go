@@ -7,6 +7,7 @@ type ApiConfig struct {
 	CorsAllowedOrigin       string
 	SqlQueryTimeoutDuration time.Duration
 	RedisCacheTTL           time.Duration
+	KafkaProdTopic          string
 	// db   db.DBConfig
 	// env         string
 	// apiURL      string
