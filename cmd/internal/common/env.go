@@ -2,9 +2,11 @@ package app_common
 
 import (
 	"fmt"
+	"log"
 	"log/slog"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -47,12 +49,21 @@ func (e *envVarFetcher) GetEnv(key string) (string, error) {
 	return value, nil
 }
 
-func (e *envVarFetcher) GetEnvOrFallback(key, fallback string) string {
+func (e *envVarFetcher) GetEnvString(key, fallback string) string {
 	v, err := e.GetEnv(key)
 	if err == nil {
 		return v
 	}
 	return fallback
+}
+
+func (e *envVarFetcher) GetEnvDuration(key, fallback string) time.Duration {
+	strValue := e.GetEnvString(key, fallback)
+	duration, err := time.ParseDuration(strValue)
+	if err != nil {
+		log.Fatalf("failed to parse duration string %q: %v", strValue, err) //TODO check other option to handle error
+	}
+	return duration
 }
 
 // func getString(key, fallback string) string {

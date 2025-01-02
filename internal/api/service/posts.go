@@ -9,11 +9,12 @@ import (
 )
 
 type postService struct {
-	store store.PostStore
+	store          store.PostStore
+	msgBrokerStore store.PostMessageBrokerStore
 }
 
-func NewPostService(store store.PostStore) *postService {
-	return &postService{store: store}
+func NewPostService(store store.PostStore, msgBrokerStore store.PostMessageBrokerStore) *postService {
+	return &postService{store: store, msgBrokerStore: msgBrokerStore}
 }
 
 // Explicitly ensuring that postService adheres to the PostService interface
@@ -34,8 +35,13 @@ func (p *postService) Create(ctx context.Context, payload dto.CreatePostRequest)
 	if err := p.store.Create(ctx, post); err != nil {
 		return nil, err
 	}
+
+	if err := p.msgBrokerStore.Created(ctx, *post); err != nil {
+		return nil, err
+	}
 	return post, nil
 }
+
 func (p *postService) Update(ctx context.Context, payload dto.UpdatePostRequest) (*model.Post, error) {
 	post := &model.Post{
 		ID:      payload.ID,
@@ -46,6 +52,9 @@ func (p *postService) Update(ctx context.Context, payload dto.UpdatePostRequest)
 
 	updatedPost, err := p.store.Update(ctx, post)
 	if err != nil {
+		return nil, err
+	}
+	if err := p.msgBrokerStore.Updated(ctx, *updatedPost); err != nil {
 		return nil, err
 	}
 	return updatedPost, nil

@@ -17,6 +17,7 @@ require (
 
 require (
 	github.com/bradfitz/gomemcache v0.0.0-20230905024940-24af94b03874
+	github.com/confluentinc/confluent-kafka-go/v2 v2.6.1
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
@@ -24,7 +25,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/redis/go-redis/v9 v9.7.0
-	golang.org/x/net v0.21.0 // indirect
+	golang.org/x/net v0.29.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
 )

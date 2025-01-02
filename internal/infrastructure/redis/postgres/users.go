@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 	"github.com/redis/go-redis/v9"
@@ -18,11 +17,10 @@ type userStore struct {
 	client     *redis.Client
 	orig       store.UserStore
 	expiration time.Duration
-	config     *config.ApiConfig
 }
 
-func NewUserStore(client *redis.Client, orig store.UserStore, cfg *config.ApiConfig) *userStore {
-	return &userStore{client: client, orig: orig, expiration: 10 * time.Minute, config: cfg}
+func NewUserStore(client *redis.Client, orig store.UserStore, expiration time.Duration) *userStore {
+	return &userStore{client: client, orig: orig, expiration: expiration}
 }
 
 func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, error) {
@@ -88,9 +86,9 @@ func (s *userStore) cacheUser(ctx context.Context, user *model.User) error {
 	emailCacheKey := userCacheKey(user.Email)
 	// Use Redis pipeline with a transaction
 	pipe := s.client.TxPipeline()
-	pipe.Set(ctx, cacheKey, userJSON, s.config.RedisCacheTTL)     // cache user
-	pipe.Set(ctx, emailCacheKey, user.ID, s.config.RedisCacheTTL) // cache user:email
-	_, err = pipe.Exec(ctx)                                       // Atomically executes all commands in the pipeline
+	pipe.Set(ctx, cacheKey, userJSON, s.expiration)     // cache user
+	pipe.Set(ctx, emailCacheKey, user.ID, s.expiration) // cache user:email
+	_, err = pipe.Exec(ctx)                             // Atomically executes all commands in the pipeline
 	if err != nil {
 		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to cache user update")
 	}

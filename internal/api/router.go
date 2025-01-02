@@ -7,19 +7,18 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 )
 
 type router struct {
-	handler handler.Handler
-	config  *config.ApiConfig
+	handler           handler.Handler
+	corsAllowedOrigin string
 }
 
-func NewRouter(handler handler.Handler, config *config.ApiConfig) *router {
+func NewRouter(handler handler.Handler, corsAllowedOrigin string) *router {
 	return &router{
-		handler: handler,
-		config:  config,
+		handler:           handler,
+		corsAllowedOrigin: corsAllowedOrigin,
 	}
 }
 
@@ -31,7 +30,7 @@ func (rt *router) RegisterHandlers() http.Handler {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{rt.config.CorsAllowedOrigin},
+		AllowedOrigins:   []string{rt.corsAllowedOrigin},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		ExposedHeaders:   []string{"Link"},

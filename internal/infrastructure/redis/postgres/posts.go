@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 	"github.com/redis/go-redis/v9"
@@ -18,11 +17,10 @@ type postStore struct {
 	client     *redis.Client
 	orig       store.PostStore
 	expiration time.Duration
-	config     *config.ApiConfig
 }
 
-func NewPostStore(client *redis.Client, orig store.PostStore, cfg *config.ApiConfig) *postStore {
-	return &postStore{client: client, orig: orig, expiration: 10 * time.Minute, config: cfg} //TODO
+func NewPostStore(client *redis.Client, orig store.PostStore, expiration time.Duration) *postStore {
+	return &postStore{client: client, orig: orig, expiration: expiration} //TODO
 }
 
 func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) {
@@ -85,6 +83,6 @@ func (s *postStore) cachePost(ctx context.Context, post *model.Post) error {
 		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal post")
 	}
 	cacheKey := postCacheKey(post.ID)
-	s.client.Set(ctx, cacheKey, postJSON, s.config.RedisCacheTTL)
+	s.client.Set(ctx, cacheKey, postJSON, s.expiration)
 	return nil
 }

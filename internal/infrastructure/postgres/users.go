@@ -5,19 +5,19 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 
 type userStore struct {
-	db     *sql.DB
-	config *config.ApiConfig
+	db                      *sql.DB
+	sqlQueryTimeoutDuration time.Duration
 }
 
-func NewUserStore(db *sql.DB, cfg *config.ApiConfig) *userStore {
-	return &userStore{db: db, config: cfg}
+func NewUserStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *userStore {
+	return &userStore{db: db, sqlQueryTimeoutDuration: sqlQueryTimeoutDuration}
 }
 
 func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, error) {
@@ -28,7 +28,7 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 		WHERE users.id = $1
 	`
 
-	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
 	defer cancel()
 
 	user := &model.User{}
@@ -66,7 +66,7 @@ func (s *userStore) Create(ctx context.Context, user *model.User) error {
     RETURNING id, created_at
 	`
 
-	ctx, cancel := context.WithTimeout(ctx, s.config.SqlQueryTimeoutDuration)
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
 	defer cancel()
 
 	role := user.Role.Name

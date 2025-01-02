@@ -14,9 +14,10 @@ import (
 	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/config"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
 	redis_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/redis/postgres"
 	"github.com/redis/go-redis/v9"
@@ -35,13 +36,22 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error init redis: %s", err)
 	}
-	conf := &config.ApiConfig{
-		Addr:                    fmt.Sprintf(":%s", env.ApiPort),
-		CorsAllowedOrigin:       env.ApiCorsAllowedOrigin,
-		SqlQueryTimeoutDuration: time.Second * 5,
-		RedisCacheTTL:           time.Minute * 5,
+
+	kafkaProd, err := initKafkaProducer(env)
+	if err != nil {
+		log.Fatalf("Error init kafka producer: %s", err)
 	}
-	s, _ := newServer(conf, db, redis)
+
+	pStore := postgres.NewPostStore(db, env.ApiDBQueryTimeoutDuration)
+	uStore := postgres.NewUserStore(db, env.ApiDBQueryTimeoutDuration)
+	//rStore := store.NewRoleStore(db)
+
+	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(kafkaProd, env.KafkaProdTopic)
+
+	cachedPStore := redis_postgres.NewPostStore(redis, pStore, env.ApiRedisCacheExpirationDuration)
+	cachedUStore := redis_postgres.NewUserStore(redis, uStore, env.ApiRedisCacheExpirationDuration)
+
+	s, _ := newServer(env, cachedPStore, cachedUStore, messageBrokerStore)
 	errC := make(chan error, 1)        //channel to capture error while start/kill application
 	handleShutdown(s, db, redis, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
@@ -50,24 +60,16 @@ func main() {
 	}
 }
 
-func newServer(cfg *config.ApiConfig, db *sql.DB, redis *redis.Client) (*http.Server, error) {
-
-	pStore := postgres.NewPostStore(db, cfg)
-	uStore := postgres.NewUserStore(db, cfg)
-	//rStore := store.NewRoleStore(db)
-
-	cachedPStore := redis_postgres.NewPostStore(redis, pStore, cfg)
-	cachedUStore := redis_postgres.NewUserStore(redis, uStore, cfg)
-
-	pService := service.NewPostService(cachedPStore)
-	uService := service.NewUserService(cachedUStore)
+func newServer(env *ApiEnvVar, pStore store.PostStore, uStore store.UserStore, messageBrokerStore store.PostMessageBrokerStore) (*http.Server, error) {
+	pService := service.NewPostService(pStore, messageBrokerStore)
+	uService := service.NewUserService(uStore)
 
 	handler := handler.NewHandler(uService, pService)
 
-	router := api.NewRouter(handler, cfg)
+	router := api.NewRouter(handler, env.ApiCorsAllowedOrigin)
 	routes := router.RegisterHandlers()
 	return &http.Server{
-		Addr:         cfg.Addr,
+		Addr:         env.ApiAddr,
 		Handler:      routes,
 		WriteTimeout: time.Second * 30,
 		ReadTimeout:  time.Second * 10,
