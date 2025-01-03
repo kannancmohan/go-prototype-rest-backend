@@ -44,8 +44,8 @@ func main() {
 		log.Fatalf("Error init kafka producer: %s", err)
 	}
 
-	pStore := postgres.NewPostStore(db, env.ApiDBQueryTimeoutDuration)
-	uStore := postgres.NewUserStore(db, env.ApiDBQueryTimeoutDuration)
+	pStore := postgres.NewPostDBStore(db, env.ApiDBQueryTimeoutDuration)
+	uStore := postgres.NewUserDBStore(db, env.ApiDBQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
 
 	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(kafkaProd, env.KafkaProdTopic)

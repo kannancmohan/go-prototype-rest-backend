@@ -15,7 +15,7 @@ type roleStore struct {
 	sqlQueryTimeoutDuration time.Duration
 }
 
-func NewRoleStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *roleStore {
+func NewRoleDBStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *roleStore {
 	return &roleStore{db: db, sqlQueryTimeoutDuration: sqlQueryTimeoutDuration}
 }
 

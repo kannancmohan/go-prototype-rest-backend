@@ -17,7 +17,7 @@ type postStore struct {
 	sqlQueryTimeoutDuration time.Duration
 }
 
-func NewPostStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *postStore {
+func NewPostDBStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *postStore {
 	return &postStore{db: db, sqlQueryTimeoutDuration: sqlQueryTimeoutDuration}
 }
 

@@ -16,7 +16,7 @@ type userStore struct {
 	sqlQueryTimeoutDuration time.Duration
 }
 
-func NewUserStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *userStore {
+func NewUserDBStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *userStore {
 	return &userStore{db: db, sqlQueryTimeoutDuration: sqlQueryTimeoutDuration}
 }
 
