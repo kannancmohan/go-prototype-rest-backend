@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
@@ -24,7 +25,8 @@ import (
 )
 
 func main() {
-	env := initApiEnvVar()
+	envName := app_common.GetEnvNameFromCommandLine()
+	env := initApiEnvVar(envName)
 	initLogger(env) // error ignored on purpose
 
 	db, err := initDB(env)
