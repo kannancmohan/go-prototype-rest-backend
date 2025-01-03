@@ -15,11 +15,11 @@ import (
 
 type postStore struct {
 	client     *redis.Client
-	orig       store.PostStore
+	orig       store.PostDBStore
 	expiration time.Duration
 }
 
-func NewPostStore(client *redis.Client, orig store.PostStore, expiration time.Duration) *postStore {
+func NewPostStore(client *redis.Client, orig store.PostDBStore, expiration time.Duration) *postStore {
 	return &postStore{client: client, orig: orig, expiration: expiration} //TODO
 }
 

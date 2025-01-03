@@ -15,11 +15,11 @@ import (
 
 type userStore struct {
 	client     *redis.Client
-	orig       store.UserStore
+	orig       store.UserDBStore
 	expiration time.Duration
 }
 
-func NewUserStore(client *redis.Client, orig store.UserStore, expiration time.Duration) *userStore {
+func NewUserStore(client *redis.Client, orig store.UserDBStore, expiration time.Duration) *userStore {
 	return &userStore{client: client, orig: orig, expiration: expiration}
 }
 

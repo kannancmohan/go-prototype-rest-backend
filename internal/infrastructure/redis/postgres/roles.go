@@ -11,11 +11,11 @@ import (
 
 type roleStore struct {
 	client     *redis.Client
-	orig       store.RoleStore
+	orig       store.RoleDBStore
 	expiration time.Duration
 }
 
-func NewRoleStore(client *redis.Client, orig store.RoleStore, expiration time.Duration) *roleStore {
+func NewRoleStore(client *redis.Client, orig store.RoleDBStore, expiration time.Duration) *roleStore {
 	return &roleStore{client: client, orig: orig, expiration: expiration} //TODO
 }
 

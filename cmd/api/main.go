@@ -62,7 +62,7 @@ func main() {
 	}
 }
 
-func newServer(env *ApiEnvVar, pStore store.PostStore, uStore store.UserStore, messageBrokerStore store.PostMessageBrokerStore) (*http.Server, error) {
+func newServer(env *ApiEnvVar, pStore store.PostDBStore, uStore store.UserDBStore, messageBrokerStore store.PostMessageBrokerStore) (*http.Server, error) {
 	pService := service.NewPostService(pStore, messageBrokerStore)
 	uService := service.NewUserService(uStore)
 

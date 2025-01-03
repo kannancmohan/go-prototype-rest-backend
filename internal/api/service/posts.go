@@ -9,11 +9,11 @@ import (
 )
 
 type postService struct {
-	store          store.PostStore
+	store          store.PostDBStore
 	msgBrokerStore store.PostMessageBrokerStore
 }
 
-func NewPostService(store store.PostStore, msgBrokerStore store.PostMessageBrokerStore) *postService {
+func NewPostService(store store.PostDBStore, msgBrokerStore store.PostMessageBrokerStore) *postService {
 	return &postService{store: store, msgBrokerStore: msgBrokerStore}
 }
 
