@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/lib/pq"
 )
@@ -45,9 +45,9 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, common.ErrNotFound
+			return nil, api_common.ErrNotFound
 		default:
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "post not found")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "post not found")
 		}
 	}
 
@@ -76,7 +76,7 @@ func (s *postStore) Create(ctx context.Context, post *model.Post) error {
 		&post.UpdatedAt,
 	)
 	if err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "create post")
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "create post")
 	}
 
 	return nil
@@ -129,9 +129,9 @@ func (s *postStore) Update(ctx context.Context, post *model.Post) (*model.Post, 
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, common.ErrNotFound
+			return nil, api_common.ErrNotFound
 		default:
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "update post")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "update post")
 		}
 	}
 

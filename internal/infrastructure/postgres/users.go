@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 )
 
@@ -50,9 +50,9 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			return nil, common.ErrNotFound
+			return nil, api_common.ErrNotFound
 		default:
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "user not found")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "user not found")
 		}
 	}
 
@@ -88,11 +88,11 @@ func (s *userStore) Create(ctx context.Context, user *model.User) error {
 	if err != nil {
 		switch {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
-			return common.ErrDuplicateEmail
+			return api_common.ErrDuplicateEmail
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"`:
-			return common.ErrDuplicateUsername
+			return api_common.ErrDuplicateUsername
 		default:
-			return common.WrapErrorf(err, common.ErrorCodeUnknown, "create user")
+			return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "create user")
 		}
 	}
 
@@ -152,20 +152,20 @@ func (s *userStore) Update(ctx context.Context, user *model.User) (*model.User, 
 		if err != nil {
 			switch {
 			case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
-				return common.ErrDuplicateEmail
+				return api_common.ErrDuplicateEmail
 			case err.Error() == `pq: duplicate key value violates unique constraint "users_username_key"`:
-				return common.ErrDuplicateUsername
+				return api_common.ErrDuplicateUsername
 			case errors.Is(err, sql.ErrNoRows):
-				return common.ErrNotFound
+				return api_common.ErrNotFound
 			default:
-				return common.WrapErrorf(err, common.ErrorCodeUnknown, "update user")
+				return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "update user")
 			}
 		}
 
 		var roleName string
 		err = tx.QueryRowContext(ctx, `SELECT name FROM roles WHERE id = $1`, roleID).Scan(&roleName)
 		if err != nil {
-			return common.WrapErrorf(err, common.ErrorCodeUnknown, "fetch role name for user")
+			return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "fetch role name for user")
 		}
 
 		user.Role = model.Role{Name: roleName}

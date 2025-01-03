@@ -1,4 +1,4 @@
-package common
+package api_common
 
 import (
 	"fmt"

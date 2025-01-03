@@ -2,7 +2,6 @@ package app_common
 
 import (
 	esv8 "github.com/elastic/go-elasticsearch/v8"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 )
 
 type ElasticSearchConfig struct {
@@ -17,12 +16,12 @@ func (e *ElasticSearchConfig) NewElasticSearch() (*esv8.Client, error) {
 	})
 
 	if err != nil {
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "elasticsearch.Open")
+		return nil, err
 	}
 
 	res, err := es.Info()
 	if err != nil {
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "es.Info")
+		return nil, err
 	}
 
 	defer func() {
