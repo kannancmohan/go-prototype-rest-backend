@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	"github.com/redis/go-redis/v9"
 )
 

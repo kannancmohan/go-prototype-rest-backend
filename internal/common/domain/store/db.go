@@ -22,10 +22,3 @@ type UserStore interface {
 	Create(context.Context, *model.User) error
 	Update(context.Context, *model.User) (*model.User, error)
 }
-
-// store interface for post broker events. In this case, to kafka
-type PostMessageBrokerStore interface {
-	Created(ctx context.Context, post model.Post) error
-	Deleted(ctx context.Context, id int64) error
-	Updated(ctx context.Context, post model.Post) error
-}

@@ -17,7 +17,7 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
 	redis_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/redis/postgres"
