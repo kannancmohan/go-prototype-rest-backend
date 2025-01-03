@@ -8,8 +8,8 @@ import (
 	"time"
 
 	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/redis/go-redis/v9"
 )
 

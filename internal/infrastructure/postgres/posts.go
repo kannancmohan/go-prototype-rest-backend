@@ -8,7 +8,7 @@ import (
 	"time"
 
 	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/lib/pq"
 )
 

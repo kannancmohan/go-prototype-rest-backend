@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 )
 
 // store interface for persisting user,role & post. In this case, to postgres db
