@@ -71,6 +71,8 @@ services:
       - "9300:9300"
     environment:
       - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
     # healthcheck:
     #   test: ["CMD-SHELL", "curl --silent --fail localhost:9200/_cluster/health || exit 1"]
     #   interval: 20s
