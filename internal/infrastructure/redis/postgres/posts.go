@@ -7,19 +7,19 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	"github.com/redis/go-redis/v9"
 )
 
 type postStore struct {
 	client     *redis.Client
-	orig       store.PostStore
+	orig       store.PostDBStore
 	expiration time.Duration
 }
 
-func NewPostStore(client *redis.Client, orig store.PostStore, expiration time.Duration) *postStore {
+func NewPostStore(client *redis.Client, orig store.PostDBStore, expiration time.Duration) *postStore {
 	return &postStore{client: client, orig: orig, expiration: expiration} //TODO
 }
 
@@ -32,12 +32,12 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 	if err == nil { // Cache hit
 		err = json.Unmarshal([]byte(cacheData), post)
 		if err != nil {
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to unmarshal post from cache")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "failed to unmarshal post from cache")
 		}
 		slog.Debug("retrieved post from cache", "postID", id)
 		return post, nil
 	} else if err != redis.Nil { // Redis error (other than a cache miss)
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "redis get failed")
+		return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "redis get failed")
 	}
 	p, err := s.orig.GetByID(ctx, id)
 	if err != nil {
@@ -73,6 +73,19 @@ func (s *postStore) Update(ctx context.Context, post *model.Post) (*model.Post, 
 	return updatedPost, nil
 }
 
+func (s *postStore) Delete(ctx context.Context, postID int64) error {
+	//TODO add transaction for atomicity ??
+	err := s.orig.Delete(ctx, postID)
+	if err != nil {
+		return err
+	}
+	cacheKey := postCacheKey(postID)
+	if err := s.client.Del(ctx, cacheKey).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func postCacheKey(value any) string {
 	return fmt.Sprintf("post:%v", value)
 }
@@ -80,7 +93,7 @@ func postCacheKey(value any) string {
 func (s *postStore) cachePost(ctx context.Context, post *model.Post) error {
 	postJSON, err := json.Marshal(post)
 	if err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal post")
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "failed to marshal post")
 	}
 	cacheKey := postCacheKey(post.ID)
 	s.client.Set(ctx, cacheKey, postJSON, s.expiration)

@@ -11,9 +11,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 )
 
 var validate *validator.Validate
@@ -32,6 +32,7 @@ type PostService interface {
 	GetByID(context.Context, int64) (*model.Post, error)
 	Create(context.Context, dto.CreatePostRequest) (*model.Post, error)
 	Update(context.Context, dto.UpdatePostRequest) (*model.Post, error)
+	Delete(context.Context, int64) error
 }
 
 type Handler struct {
@@ -52,7 +53,7 @@ func readJSONValid[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 		return payload, err
 	}
 	if err := validate.Struct(payload); err != nil {
-		return payload, common.WrapErrorf(err, common.ErrorCodeBadRequest, "json validation")
+		return payload, api_common.WrapErrorf(err, api_common.ErrorCodeBadRequest, "json validation")
 	}
 	return payload, nil
 }
@@ -65,7 +66,7 @@ func readJSON[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&v); err != nil {
-		return v, common.WrapErrorf(err, common.ErrorCodeBadRequest, "json decoder")
+		return v, api_common.WrapErrorf(err, api_common.ErrorCodeBadRequest, "json decoder")
 	}
 	return v, nil
 }
@@ -74,7 +75,7 @@ func renderResponse[T any](w http.ResponseWriter, status int, v T) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "json encoder")
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "json encoder")
 	}
 	return nil
 }
@@ -89,21 +90,21 @@ func renderErrorResponse(w http.ResponseWriter, msg string, err error) {
 	status := http.StatusInternalServerError //default status
 	logLevel := slog.LevelInfo               //default log level
 
-	var ierr *common.Error
+	var ierr *api_common.Error
 	if !errors.As(err, &ierr) {
 		logLevel = slog.LevelError
 		resp.Error = "internal error"
 	} else {
 		switch ierr.Code() {
-		case common.ErrorCodeNotFound:
+		case api_common.ErrorCodeNotFound:
 			status = http.StatusNotFound
-		case common.ErrorCodeBadRequest:
+		case api_common.ErrorCodeBadRequest:
 			status = http.StatusBadRequest
 			origErr := ierr.Unwrap()
 			setValidationErrors(origErr, &resp)
-		case common.ErrorCodeConflict:
+		case api_common.ErrorCodeConflict:
 			status = http.StatusConflict
-		case common.ErrorCodeUnknown:
+		case api_common.ErrorCodeUnknown:
 			fallthrough
 		default:
 			logLevel = slog.LevelError
@@ -141,7 +142,7 @@ func setValidationErrors(origErr error, res *errorResponse) {
 func getIntParam(param string, r *http.Request) (int64, error) {
 	userID, err := strconv.ParseInt(chi.URLParam(r, param), 10, 64) //TODO
 	if err != nil {
-		return userID, common.WrapErrorf(err, common.ErrorCodeBadRequest, "invalid request")
+		return userID, api_common.WrapErrorf(err, api_common.ErrorCodeBadRequest, "invalid request")
 	}
 	return userID, nil
 }

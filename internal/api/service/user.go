@@ -3,17 +3,17 @@ package service
 import (
 	"context"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
 
 type userService struct {
-	store store.UserStore
+	store store.UserDBStore
 }
 
-func NewUserService(store store.UserStore) *userService {
+func NewUserService(store store.UserDBStore) *userService {
 	return &userService{store: store}
 }
 
@@ -36,7 +36,7 @@ func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUse
 	// hash the user password
 	if err := user.Password.Set(payload.Password); err != nil {
 		//app.internalServerError(w, r, err)
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error hashing password")
+		return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "error hashing password")
 	}
 
 	if err := u.store.Create(ctx, user); err != nil {
@@ -58,7 +58,7 @@ func (u *userService) Update(ctx context.Context, payload dto.UpdateUserRequest)
 	// hash the user password
 	if payload.Password != "" {
 		if err := user.Password.Set(payload.Password); err != nil {
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error hashing password")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "error hashing password")
 		}
 	}
 

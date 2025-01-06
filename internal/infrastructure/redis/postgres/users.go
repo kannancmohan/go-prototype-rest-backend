@@ -7,19 +7,19 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	"github.com/redis/go-redis/v9"
 )
 
 type userStore struct {
 	client     *redis.Client
-	orig       store.UserStore
+	orig       store.UserDBStore
 	expiration time.Duration
 }
 
-func NewUserStore(client *redis.Client, orig store.UserStore, expiration time.Duration) *userStore {
+func NewUserStore(client *redis.Client, orig store.UserDBStore, expiration time.Duration) *userStore {
 	return &userStore{client: client, orig: orig, expiration: expiration}
 }
 
@@ -32,12 +32,12 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 	if err == nil { // Cache hit
 		err = json.Unmarshal([]byte(cacheData), user)
 		if err != nil {
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to unmarshal user from cache")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "failed to unmarshal user from cache")
 		}
 		slog.Debug("retrieved user from cache", "userID", userID)
 		return user, nil
 	} else if err != redis.Nil { // Redis error (other than a cache miss)
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "redis get failed")
+		return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "redis get failed")
 	}
 	u, err := s.orig.GetByID(ctx, userID)
 	if err != nil {
@@ -80,7 +80,7 @@ func userCacheKey(value any) string {
 func (s *userStore) cacheUser(ctx context.Context, user *model.User) error {
 	userJSON, err := json.Marshal(user)
 	if err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal user")
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "failed to marshal user")
 	}
 	cacheKey := userCacheKey(user.ID)
 	emailCacheKey := userCacheKey(user.Email)
@@ -90,7 +90,7 @@ func (s *userStore) cacheUser(ctx context.Context, user *model.User) error {
 	pipe.Set(ctx, emailCacheKey, user.ID, s.expiration) // cache user:email
 	_, err = pipe.Exec(ctx)                             // Atomically executes all commands in the pipeline
 	if err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to cache user update")
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "failed to cache user update")
 	}
 	return nil
 }

@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 )
 
 type roleStore struct {
@@ -15,7 +15,7 @@ type roleStore struct {
 	sqlQueryTimeoutDuration time.Duration
 }
 
-func NewRoleStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *roleStore {
+func NewRoleDBStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *roleStore {
 	return &roleStore{db: db, sqlQueryTimeoutDuration: sqlQueryTimeoutDuration}
 }
 
@@ -27,9 +27,9 @@ func (s *roleStore) GetByName(ctx context.Context, slug string) (*model.Role, er
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, common.ErrNotFound
+			return nil, api_common.ErrNotFound
 		default:
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "role not found")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "role not found")
 		}
 	}
 

@@ -1,6 +1,7 @@
 package app_common
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"log/slog"
@@ -10,6 +11,13 @@ import (
 
 	"github.com/joho/godotenv"
 )
+
+func GetEnvNameFromCommandLine() string {
+	var env string
+	flag.StringVar(&env, "env", "", "Environment Name")
+	flag.Parse()
+	return env
+}
 
 type ErrorEnvVarNotFound struct {
 	Key string
@@ -61,7 +69,7 @@ func (e *envVarFetcher) GetEnvDuration(key, fallback string) time.Duration {
 	strValue := e.GetEnvString(key, fallback)
 	duration, err := time.ParseDuration(strValue)
 	if err != nil {
-		log.Fatalf("failed to parse duration string %q: %v", strValue, err) //TODO check other option to handle error
+		log.Fatalf("failed to parse environment variable[key:%q, value:%q]: %v", key, strValue, err) //TODO check other option to handle error
 	}
 	return duration
 }

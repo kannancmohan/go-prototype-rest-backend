@@ -13,10 +13,11 @@ import (
 	"syscall"
 	"time"
 
+	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
 	redis_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/redis/postgres"
@@ -24,7 +25,8 @@ import (
 )
 
 func main() {
-	env := initApiEnvVar()
+	envName := app_common.GetEnvNameFromCommandLine()
+	env := initApiEnvVar(envName)
 	initLogger(env) // error ignored on purpose
 
 	db, err := initDB(env)
@@ -42,8 +44,8 @@ func main() {
 		log.Fatalf("Error init kafka producer: %s", err)
 	}
 
-	pStore := postgres.NewPostStore(db, env.ApiDBQueryTimeoutDuration)
-	uStore := postgres.NewUserStore(db, env.ApiDBQueryTimeoutDuration)
+	pStore := postgres.NewPostDBStore(db, env.ApiDBQueryTimeoutDuration)
+	uStore := postgres.NewUserDBStore(db, env.ApiDBQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
 
 	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(kafkaProd, env.KafkaProdTopic)
@@ -60,7 +62,7 @@ func main() {
 	}
 }
 
-func newServer(env *ApiEnvVar, pStore store.PostStore, uStore store.UserStore, messageBrokerStore store.PostMessageBrokerStore) (*http.Server, error) {
+func newServer(env *ApiEnvVar, pStore store.PostDBStore, uStore store.UserDBStore, messageBrokerStore store.PostMessageBrokerStore) (*http.Server, error) {
 	pService := service.NewPostService(pStore, messageBrokerStore)
 	uService := service.NewUserService(uStore)
 
@@ -77,7 +79,7 @@ func newServer(env *ApiEnvVar, pStore store.PostStore, uStore store.UserStore, m
 	}, nil
 }
 
-func startServer(s *http.Server, errC chan error) {
+func startServer(s *http.Server, errC chan<- error) {
 	go func() {
 		slog.Info(fmt.Sprintf("Listening on host: %s", s.Addr))
 		// After Shutdown or Close, the returned error is ErrServerClosed
@@ -87,11 +89,11 @@ func startServer(s *http.Server, errC chan error) {
 	}()
 }
 
-func handleShutdown(s *http.Server, db *sql.DB, redis *redis.Client, errC chan error) {
+func handleShutdown(s *http.Server, db *sql.DB, redis *redis.Client, errC chan<- error) {
 	// create notification context that terminates if one of the mentioned signal(eg os.Interrup) is triggered
 	ntyCtx, ntyStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
-		<-ntyCtx.Done() // Block until signal is received
+		<-ntyCtx.Done() // Block until any interrupt signal is received
 		slog.Info("Shutdown signal received")
 
 		ctxTimeout, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)

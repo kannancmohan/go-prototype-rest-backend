@@ -3,17 +3,17 @@ package service
 import (
 	"context"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
 
 type postService struct {
-	store          store.PostStore
+	store          store.PostDBStore
 	msgBrokerStore store.PostMessageBrokerStore
 }
 
-func NewPostService(store store.PostStore, msgBrokerStore store.PostMessageBrokerStore) *postService {
+func NewPostService(store store.PostDBStore, msgBrokerStore store.PostMessageBrokerStore) *postService {
 	return &postService{store: store, msgBrokerStore: msgBrokerStore}
 }
 
@@ -58,4 +58,14 @@ func (p *postService) Update(ctx context.Context, payload dto.UpdatePostRequest)
 		return nil, err
 	}
 	return updatedPost, nil
+}
+
+func (p *postService) Delete(ctx context.Context, postID int64) error {
+	if err := p.store.Delete(ctx, postID); err != nil {
+		return err
+	}
+	if err := p.msgBrokerStore.Deleted(ctx, postID); err != nil {
+		return err
+	}
+	return nil
 }

@@ -34,8 +34,8 @@ func (e ApiEnvVar) String() string {
 	return fmt.Sprintf("EnvVar{ApiAddr: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, MemCacheDHost: %s, RedisHost: %s, RedisDB: %s}", e.ApiAddr, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.MemCacheDHost, e.RedisHost, e.RedisDB)
 }
 
-func initApiEnvVar() *ApiEnvVar {
-	env := app_common.NewEnvVarFetcher("", nil)
+func initApiEnvVar(envName string) *ApiEnvVar {
+	env := app_common.NewEnvVarFetcher(envName, nil)
 	return &ApiEnvVar{
 		ApiAddr:                   fmt.Sprintf(":%s", env.GetEnvString("PORT", "8080")),
 		LogLevel:                  env.GetEnvString("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR

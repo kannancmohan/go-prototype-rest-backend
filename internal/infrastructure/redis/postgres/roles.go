@@ -4,18 +4,18 @@ import (
 	"context"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/store"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	"github.com/redis/go-redis/v9"
 )
 
 type roleStore struct {
 	client     *redis.Client
-	orig       store.RoleStore
+	orig       store.RoleDBStore
 	expiration time.Duration
 }
 
-func NewRoleStore(client *redis.Client, orig store.RoleStore, expiration time.Duration) *roleStore {
+func NewRoleStore(client *redis.Client, orig store.RoleDBStore, expiration time.Duration) *roleStore {
 	return &roleStore{client: client, orig: orig, expiration: expiration} //TODO
 }
 

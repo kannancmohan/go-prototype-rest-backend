@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/domain/model"
+	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/lib/pq"
 )
 
@@ -17,7 +17,7 @@ type postStore struct {
 	sqlQueryTimeoutDuration time.Duration
 }
 
-func NewPostStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *postStore {
+func NewPostDBStore(db *sql.DB, sqlQueryTimeoutDuration time.Duration) *postStore {
 	return &postStore{db: db, sqlQueryTimeoutDuration: sqlQueryTimeoutDuration}
 }
 
@@ -45,9 +45,9 @@ func (s *postStore) GetByID(ctx context.Context, id int64) (*model.Post, error) 
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, common.ErrNotFound
+			return nil, api_common.ErrNotFound
 		default:
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "post not found")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "post not found")
 		}
 	}
 
@@ -76,7 +76,7 @@ func (s *postStore) Create(ctx context.Context, post *model.Post) error {
 		&post.UpdatedAt,
 	)
 	if err != nil {
-		return common.WrapErrorf(err, common.ErrorCodeUnknown, "create post")
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "create post")
 	}
 
 	return nil
@@ -129,11 +129,34 @@ func (s *postStore) Update(ctx context.Context, post *model.Post) (*model.Post, 
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, common.ErrNotFound
+			return nil, api_common.ErrNotFound
 		default:
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "update post")
+			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "update post")
 		}
 	}
 
 	return &updatedPost, nil
+}
+
+func (s *postStore) Delete(ctx context.Context, postID int64) error {
+	query := `DELETE FROM posts WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
+	defer cancel()
+
+	res, err := s.db.ExecContext(ctx, query, postID)
+	if err != nil {
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "delete post")
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "delete post: rows affected error")
+	}
+
+	if rows == 0 {
+		return api_common.ErrNotFound
+	}
+
+	return nil
 }
