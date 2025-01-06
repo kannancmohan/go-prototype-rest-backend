@@ -1,6 +1,8 @@
 # go-prototype-rest-backend
 A rest backend app build using golang.
 
+![High Level arch diagram](./docs/images/go_rest_backend_app_arch.jpg "GO rest application")
+
 ## Tech Stack 
 | Item              | version  | desc                     |
 | :---------------- | :------: | -----------------------: |
