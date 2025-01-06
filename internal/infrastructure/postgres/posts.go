@@ -137,3 +137,26 @@ func (s *postStore) Update(ctx context.Context, post *model.Post) (*model.Post, 
 
 	return &updatedPost, nil
 }
+
+func (s *postStore) Delete(ctx context.Context, postID int64) error {
+	query := `DELETE FROM posts WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
+	defer cancel()
+
+	res, err := s.db.ExecContext(ctx, query, postID)
+	if err != nil {
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "delete post")
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "delete post: rows affected error")
+	}
+
+	if rows == 0 {
+		return api_common.ErrNotFound
+	}
+
+	return nil
+}

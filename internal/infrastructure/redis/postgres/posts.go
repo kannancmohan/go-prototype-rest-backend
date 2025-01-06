@@ -73,6 +73,19 @@ func (s *postStore) Update(ctx context.Context, post *model.Post) (*model.Post, 
 	return updatedPost, nil
 }
 
+func (s *postStore) Delete(ctx context.Context, postID int64) error {
+	//TODO add transaction for atomicity ??
+	err := s.orig.Delete(ctx, postID)
+	if err != nil {
+		return err
+	}
+	cacheKey := postCacheKey(postID)
+	if err := s.client.Del(ctx, cacheKey).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func postCacheKey(value any) string {
 	return fmt.Sprintf("post:%v", value)
 }

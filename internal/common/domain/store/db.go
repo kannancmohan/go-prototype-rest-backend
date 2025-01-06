@@ -11,6 +11,7 @@ type PostDBStore interface {
 	GetByID(context.Context, int64) (*model.Post, error)
 	Create(context.Context, *model.Post) error
 	Update(context.Context, *model.Post) (*model.Post, error)
+	Delete(context.Context, int64) error
 }
 
 type RoleDBStore interface {
