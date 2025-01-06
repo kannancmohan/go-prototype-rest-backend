@@ -89,3 +89,17 @@ func (h *PostHandler) UpdatePostHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	renderResponse(w, http.StatusOK, u)
 }
+
+func (h *PostHandler) DeletePostHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := getIntParam("postID", r)
+	if err != nil {
+		renderErrorResponse(w, "invalid request", err)
+		return
+	}
+	ctx := r.Context()
+	if err := h.service.Delete(ctx, id); err != nil {
+		renderErrorResponse(w, "delete failed", err)
+		return
+	}
+	renderResponse(w, http.StatusOK, id)
+}

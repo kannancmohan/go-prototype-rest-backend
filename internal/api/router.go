@@ -59,8 +59,7 @@ func (rt *router) RegisterHandlers() http.Handler {
 				//r.Use(app.postsContextMiddleware)
 				r.Get("/", rt.handler.PostHandler.GetPostHandler)
 				r.Put("/", rt.handler.PostHandler.UpdatePostHandler)
-				// r.Patch("/", app.checkPostOwnership("moderator", app.updatePostHandler))
-				// r.Delete("/", app.checkPostOwnership("admin", app.deletePostHandler))
+				r.Delete("/", rt.handler.PostHandler.DeletePostHandler)
 			})
 		})
 

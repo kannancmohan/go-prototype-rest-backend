@@ -32,6 +32,7 @@ type PostService interface {
 	GetByID(context.Context, int64) (*model.Post, error)
 	Create(context.Context, dto.CreatePostRequest) (*model.Post, error)
 	Update(context.Context, dto.UpdatePostRequest) (*model.Post, error)
+	Delete(context.Context, int64) error
 }
 
 type Handler struct {

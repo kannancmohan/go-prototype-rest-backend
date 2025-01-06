@@ -59,3 +59,13 @@ func (p *postService) Update(ctx context.Context, payload dto.UpdatePostRequest)
 	}
 	return updatedPost, nil
 }
+
+func (p *postService) Delete(ctx context.Context, postID int64) error {
+	if err := p.store.Delete(ctx, postID); err != nil {
+		return err
+	}
+	if err := p.msgBrokerStore.Deleted(ctx, postID); err != nil {
+		return err
+	}
+	return nil
+}
