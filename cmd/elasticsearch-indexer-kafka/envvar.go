@@ -12,6 +12,7 @@ type EnvVar struct {
 	KafkaHost          string
 	KafkaConsumerTopic string
 	ElasticHost        string
+	ElasticIndexName   string
 }
 
 // string representation to hide sensitive fields.
@@ -26,6 +27,7 @@ func initEnvVar(envName string) *EnvVar {
 		LogLevel:           env.GetEnvString("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
 		KafkaHost:          env.GetEnvString("KAFKA_HOST", "192.168.0.30:9093"),
 		KafkaConsumerTopic: env.GetEnvString("API_KAFKA_TOPIC", "posts"),
-		ElasticHost:        env.GetEnvString("ELASTIC_HOST", "192.168.0.30:9200"),
+		ElasticHost:        env.GetEnvString("ELASTIC_HOST", "http://192.168.0.30:9200"),
+		ElasticIndexName:   env.GetEnvString("ELASTIC_POST_INDEX_NAME", "posts"),
 	}
 }

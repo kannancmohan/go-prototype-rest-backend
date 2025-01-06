@@ -12,7 +12,8 @@ func (e *ElasticSearchConfig) NewElasticSearch() (*esv8.Client, error) {
 	es, err := esv8.NewClient(esv8.Config{
 		Addresses: []string{e.Addr},
 		//RetryOnStatus: []int{502, 503, 504, 429},
-		MaxRetries: 5,
+		EnableDebugLogger: true,
+		MaxRetries:        5,
 	})
 
 	if err != nil {

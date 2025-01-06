@@ -79,7 +79,7 @@ func newServer(env *ApiEnvVar, pStore store.PostDBStore, uStore store.UserDBStor
 	}, nil
 }
 
-func startServer(s *http.Server, errC chan error) {
+func startServer(s *http.Server, errC chan<- error) {
 	go func() {
 		slog.Info(fmt.Sprintf("Listening on host: %s", s.Addr))
 		// After Shutdown or Close, the returned error is ErrServerClosed
@@ -89,11 +89,11 @@ func startServer(s *http.Server, errC chan error) {
 	}()
 }
 
-func handleShutdown(s *http.Server, db *sql.DB, redis *redis.Client, errC chan error) {
+func handleShutdown(s *http.Server, db *sql.DB, redis *redis.Client, errC chan<- error) {
 	// create notification context that terminates if one of the mentioned signal(eg os.Interrup) is triggered
 	ntyCtx, ntyStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	go func() {
-		<-ntyCtx.Done() // Block until signal is received
+		<-ntyCtx.Done() // Block until any interrupt signal is received
 		slog.Info("Shutdown signal received")
 
 		ctxTimeout, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
