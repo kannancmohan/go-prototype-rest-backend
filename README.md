@@ -15,13 +15,16 @@ rest-backend
 ├── cmd
 │   ├── api
 │   │   ├── envvar.go
-│   │   ├── main.go
-│   │   ├── memcache.go
-│   │   └── postgres.go
+│   │   └── main.go
+│   ├── elasticsearch-indexer-kafka
+│   │   ├── envvar.go
+│   │   └── main.go
 │   ├── internal
 │   │   └── common
 │   │       ├── db.go
-│   │       └── env.go
+│   │       ├── elasticsearch.go
+│   │       ├── env.go
+│   │       └── kafka.go
 │   └── migrate
 │       └── migrations
 ├── devops
@@ -29,44 +32,56 @@ rest-backend
 │   │   └── Dockerfile
 │   ├── helm
 │   └── scripts
+├── docker-compose-postgres.yml
+├── docs
+│   ├── api
+│   ├── images
+│   │   └── go_rest_backend_app_arch.jpg
+│   └── redis.md
+├── go.mod
+├── go.sum
 ├── internal
 │   ├── api
 │   │   ├── common
 │   │   │   └── error.go
-│   │   ├── config
-│   │   │   └── config.go
-│   │   ├── domain
-│   │   │   └── model
-│   │   │       ├── post.go
-│   │   │       └── user.go
 │   │   ├── dto
+│   │   │   ├── post.go
 │   │   │   └── user.go
 │   │   ├── handler
 │   │   │   ├── handlers.go
 │   │   │   ├── posts.go
 │   │   │   └── users.go
 │   │   ├── router.go
-│   │   ├── service
-│   │   │   ├── posts.go
-│   │   │   └── user.go
-│   │   └── store
-│   │       └── store.go
+│   │   └── service
+│   │       ├── posts.go
+│   │       └── user.go
+│   ├── common
+│   │   └── domain
+│   │       ├── model
+│   │       │   ├── post.go
+│   │       │   └── user.go
+│   │       └── store
+│   │           ├── db.go
+│   │           ├── messagebroker.go
+│   │           └── search.go
 │   └── infrastructure
+│       ├── elasticsearch
+│       │   └── post.go
 │       ├── envvar
-│       ├── memcache
-│       │   └── postgres
-│       │       ├── posts.go
-│       │       ├── roles.go
-│       │       └── users.go
-│       └── postgres
-│           ├── posts.go
-│           ├── roles.go
-│           └── users.go
+│       ├── kafka
+│       │   └── post.go
+│       ├── postgres
+│       │   ├── postgres.go
+│       │   ├── posts.go
+│       │   ├── roles.go
+│       │   └── users.go
+│       └── redis
+│           └── postgres
+│               ├── posts.go
+│               ├── roles.go
+│               └── users.go
 ├── Makefile
 ├── README.md
-├── docker-compose-postgres.yml
-├── go.mod
-├── go.sum
 └── shell.nix
 ```
 ## Project setup 

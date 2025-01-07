@@ -10,9 +10,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
@@ -114,6 +116,17 @@ func handleShutdown(s *http.Server, db *sql.DB, redis *redis.Client, errC chan<-
 	}()
 }
 
+func closeResources(db *sql.DB, redis *redis.Client) {
+	if db != nil {
+		db.Close()
+		slog.Info("Database connection closed")
+	}
+	if redis != nil {
+		redis.Close()
+		slog.Info("Redis client connection closed")
+	}
+}
+
 func initLogger(env *ApiEnvVar) error {
 	var level slog.Level
 	err := level.UnmarshalText([]byte(env.LogLevel))
@@ -125,13 +138,41 @@ func initLogger(env *ApiEnvVar) error {
 	return nil
 }
 
-func closeResources(db *sql.DB, redis *redis.Client) {
-	if db != nil {
-		db.Close()
-		slog.Info("Database connection closed")
+func initDB(env *ApiEnvVar) (*sql.DB, error) {
+	dbCfg := app_common.DBConfig{
+		Addr:         fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.ApiDBName, env.DBSslMode),
+		MaxOpenConns: env.ApiDBMaxOpenConns,
+		MaxIdleConns: env.ApiDBMaxIdleConns,
+		MaxIdleTime:  env.ApiDBMaxIdleTime,
 	}
-	if redis != nil {
-		redis.Close()
-		slog.Info("Redis client connection closed")
+	db, err := dbCfg.NewConnection()
+	if err != nil {
+		return nil, err
 	}
+	return db, nil
+}
+
+func initRedis(env *ApiEnvVar) (*redis.Client, error) {
+	host := env.RedisHost
+	db := env.RedisDB
+	dbi, _ := strconv.Atoi(db)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: host,
+		DB:   dbi,
+	})
+	if _, err := rdb.Ping(context.Background()).Result(); err != nil {
+		return nil, err
+	}
+	return rdb, nil
+}
+
+func initKafkaProducer(env *ApiEnvVar) (*kafka.Producer, error) {
+	kafkaProd := app_common.KafkaProducerConfig{
+		Addr: env.KafkaHost,
+	}
+	p, err := kafkaProd.NewKafkaProducer()
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
