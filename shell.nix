@@ -34,5 +34,12 @@ pkgs.mkShellNoCC {
             echo ".envrc found. Allowing direnv..."
             direnv allow .
         fi
+
+        ### Conditional set CGO_LDFLAGS ###
+        if [ "$(uname)" = "Darwin" ]; then
+            export CGO_CFLAGS="-mmacosx-version-min=13.0"
+            export CGO_LDFLAGS="-mmacosx-version-min=13.0"
+            #echo "CGO_LDFLAGS set for macOS (Darwin)"
+        fi
     '';
 }
