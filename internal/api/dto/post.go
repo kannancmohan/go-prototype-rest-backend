@@ -1,13 +1,13 @@
 package dto
 
-type CreatePostRequest struct {
+type CreatePostReq struct {
 	Content string
 	Title   string
 	UserID  int64
 	Tags    []string
 }
 
-type UpdatePostRequest struct {
+type UpdatePostReq struct {
 	ID      int64
 	Content string
 	Title   string

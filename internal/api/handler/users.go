@@ -36,7 +36,7 @@ func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request
 		return
 	}
 	ctx := r.Context()
-	u, err := h.service.CreateAndInvite(ctx, dto.CreateUserRequest{
+	u, err := h.service.CreateAndInvite(ctx, dto.CreateUserReq{
 		Username: payload.Username,
 		Email:    payload.Email,
 		Password: payload.Password,
@@ -63,7 +63,7 @@ func (h *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	ctx := r.Context()
-	u, err := h.service.Update(ctx, dto.UpdateUserRequest{
+	u, err := h.service.Update(ctx, dto.UpdateUserReq{
 		ID:       id,
 		Username: payload.Username,
 		Email:    payload.Email,

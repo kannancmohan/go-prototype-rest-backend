@@ -50,7 +50,7 @@ func (h *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	ctx := r.Context()
-	u, err := h.service.Create(ctx, dto.CreatePostRequest{
+	u, err := h.service.Create(ctx, dto.CreatePostReq{
 		UserID:  payload.UserID, //TODO update to set this dynamically instead of passing as part of json request
 		Content: payload.Content,
 		Title:   payload.Title,
@@ -76,7 +76,7 @@ func (h *PostHandler) UpdatePostHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	ctx := r.Context()
-	u, err := h.service.Update(ctx, dto.UpdatePostRequest{
+	u, err := h.service.Update(ctx, dto.UpdatePostReq{
 		ID:      id,
 		Title:   payload.Title,
 		Content: payload.Content,

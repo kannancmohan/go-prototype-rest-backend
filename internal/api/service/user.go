@@ -24,7 +24,7 @@ func (u *userService) GetByID(ctx context.Context, userID int64) (*model.User, e
 	return u.store.GetByID(ctx, userID)
 }
 
-func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUserRequest) (*model.User, error) {
+func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUserReq) (*model.User, error) {
 	user := &model.User{
 		Username: payload.Username,
 		Email:    payload.Email,
@@ -45,7 +45,7 @@ func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUse
 	return user, nil
 }
 
-func (u *userService) Update(ctx context.Context, payload dto.UpdateUserRequest) (*model.User, error) {
+func (u *userService) Update(ctx context.Context, payload dto.UpdateUserReq) (*model.User, error) {
 	user := &model.User{
 		ID:       payload.ID,
 		Username: payload.Username,

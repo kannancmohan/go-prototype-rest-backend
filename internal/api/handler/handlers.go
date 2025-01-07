@@ -24,14 +24,14 @@ func init() {
 
 type UserService interface {
 	GetByID(context.Context, int64) (*model.User, error)
-	CreateAndInvite(context.Context, dto.CreateUserRequest) (*model.User, error)
-	Update(context.Context, dto.UpdateUserRequest) (*model.User, error)
+	CreateAndInvite(context.Context, dto.CreateUserReq) (*model.User, error)
+	Update(context.Context, dto.UpdateUserReq) (*model.User, error)
 }
 
 type PostService interface {
 	GetByID(context.Context, int64) (*model.Post, error)
-	Create(context.Context, dto.CreatePostRequest) (*model.Post, error)
-	Update(context.Context, dto.UpdatePostRequest) (*model.Post, error)
+	Create(context.Context, dto.CreatePostReq) (*model.Post, error)
+	Update(context.Context, dto.UpdatePostReq) (*model.Post, error)
 	Delete(context.Context, int64) error
 }
 

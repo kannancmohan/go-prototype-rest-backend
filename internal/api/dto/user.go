@@ -1,13 +1,13 @@
 package dto
 
-type CreateUserRequest struct {
+type CreateUserReq struct {
 	Username string
 	Email    string
 	Password string
 	Role     string
 }
 
-type UpdateUserRequest struct {
+type UpdateUserReq struct {
 	ID       int64
 	Username string
 	Email    string

@@ -24,7 +24,7 @@ func (p *postService) GetByID(ctx context.Context, postID int64) (*model.Post, e
 	return p.store.GetByID(ctx, postID)
 }
 
-func (p *postService) Create(ctx context.Context, payload dto.CreatePostRequest) (*model.Post, error) {
+func (p *postService) Create(ctx context.Context, payload dto.CreatePostReq) (*model.Post, error) {
 	post := &model.Post{
 		Content: payload.Content,
 		Title:   payload.Title,
@@ -42,7 +42,7 @@ func (p *postService) Create(ctx context.Context, payload dto.CreatePostRequest)
 	return post, nil
 }
 
-func (p *postService) Update(ctx context.Context, payload dto.UpdatePostRequest) (*model.Post, error) {
+func (p *postService) Update(ctx context.Context, payload dto.UpdatePostReq) (*model.Post, error) {
 	post := &model.Post{
 		ID:      payload.ID,
 		Content: payload.Content,
