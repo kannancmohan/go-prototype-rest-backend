@@ -6,15 +6,14 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
 )
 
-// request model
-type RegisterUserPayload struct {
+type registerUserPayload struct {
 	Username string `json:"username" validate:"required,max=100"`
 	Email    string `json:"email" validate:"required,email,max=255"`
 	Password string `json:"password" validate:"required,min=3,max=72"`
 	Role     string `json:"role" validate:"required,oneof=user admin moderator"`
 }
 
-type UpdateUserPayload struct {
+type updateUserPayload struct {
 	Username string `json:"username" validate:"omitempty,max=100"`
 	Email    string `json:"email" validate:"omitempty,email,max=255"`
 	Password string `json:"password" validate:"omitempty,min=3,max=72"`
@@ -30,7 +29,7 @@ func NewUserHandler(service UserService) *UserHandler {
 }
 
 func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request) {
-	payload, err := readJSONValid[RegisterUserPayload](w, r)
+	payload, err := readJSONValid[registerUserPayload](w, r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
@@ -57,7 +56,7 @@ func (h *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	payload, err := readJSONValid[UpdateUserPayload](w, r)
+	payload, err := readJSONValid[updateUserPayload](w, r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return

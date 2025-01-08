@@ -7,20 +7,20 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
 
-type CreatePostPayload struct {
+type createPostPayload struct {
 	UserID  int64    `json:"user_id"` //TODO update to set this dynamically instead of passing as part of json request
 	Title   string   `json:"title" validate:"required,max=100"`
 	Content string   `json:"content" validate:"required,max=1000"`
 	Tags    []string `json:"tags"`
 }
 
-type UpdatePostPayload struct {
+type updatePostPayload struct {
 	Title   string   `json:"title" validate:"omitempty,max=100"`
 	Content string   `json:"content" validate:"omitempty,max=1000"`
 	Tags    []string `json:"tags" validate:"omitempty"`
 }
 
-type SearchPostPayload struct {
+type searchPostPayload struct {
 	Title   string   `json:"title"`
 	Content string   `json:"content"`
 	UserID  int64    `json:"user_id"`
@@ -52,7 +52,7 @@ func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
-	payload, err := readJSONValid[CreatePostPayload](w, r)
+	payload, err := readJSONValid[createPostPayload](w, r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
@@ -78,7 +78,7 @@ func (h *PostHandler) UpdatePostHandler(w http.ResponseWriter, r *http.Request) 
 		renderErrorResponse(w, "invalid request", err)
 		return
 	}
-	payload, err := readJSONValid[UpdatePostPayload](w, r)
+	payload, err := readJSONValid[updatePostPayload](w, r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
@@ -113,7 +113,7 @@ func (h *PostHandler) DeletePostHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *PostHandler) SearchPostHandler(w http.ResponseWriter, r *http.Request) {
-	payload, err := readJSONValid[SearchPostPayload](w, r)
+	payload, err := readJSONValid[searchPostPayload](w, r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
