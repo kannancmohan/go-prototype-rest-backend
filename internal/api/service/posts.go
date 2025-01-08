@@ -74,7 +74,7 @@ func (p *postService) Delete(ctx context.Context, postID int64) error {
 func (p *postService) Search(ctx context.Context, req store.PostSearchReq) (store.PostSearchResp, error) {
 	res, err := p.searchStore.Search(ctx, req)
 	if err != nil {
-		return store.PostSearchResp{}, err
+		return store.PostSearchResp{}, err //TODO do we need this ?
 	}
 	return res, nil
 }
