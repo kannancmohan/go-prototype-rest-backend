@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"strconv"
 
@@ -35,12 +34,12 @@ func (p *postSearchIndexStore) Delete(ctx context.Context, id string) error {
 
 	resp, err := req.Do(ctx, p.client)
 	if err != nil {
-		return fmt.Errorf("error deleting index %w", err)
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "error deleting index")
 	}
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		return fmt.Errorf("error deleting index post id=%s: %s", id, resp.String())
+		return common.NewErrorf(common.ErrorCodeUnknown, "error deleting index post id=%s: err=%s", id, resp.String())
 	}
 
 	io.Copy(io.Discard, resp.Body) // TODO check if this is necessary ?
@@ -63,7 +62,7 @@ func (p *postSearchIndexStore) Index(ctx context.Context, post model.Post) error
 	var buf bytes.Buffer
 
 	if err := json.NewEncoder(&buf).Encode(body); err != nil {
-		return fmt.Errorf("error marshalling post to JSON: %w", err)
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "error marshalling post to JSON")
 	}
 
 	req := esv8api.IndexRequest{
@@ -75,12 +74,12 @@ func (p *postSearchIndexStore) Index(ctx context.Context, post model.Post) error
 
 	resp, err := req.Do(ctx, p.client)
 	if err != nil {
-		return fmt.Errorf("error indexing post %w", err)
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "error indexing post")
 	}
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		return fmt.Errorf("error indexing post id=%s: %s", postId, resp.String())
+		return common.NewErrorf(common.ErrorCodeUnknown, "error indexing post id=%s: err=%s", postId, resp.String())
 	}
 
 	io.Copy(io.Discard, resp.Body) // TODO check if this is necessary ?

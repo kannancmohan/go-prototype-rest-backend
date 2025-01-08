@@ -73,6 +73,22 @@ func (s *Server) ListenAndServe() error {
 		}
 	}
 
+	handleIndexEvent := func(ctx context.Context, post model.Post) error {
+		if err := s.searchStore.Index(ctx, post); err != nil {
+			slog.Error("failed to index post", "postID", post.ID, "error", err)
+			return err
+		}
+		return nil
+	}
+
+	handleDeleteEvent := func(ctx context.Context, postID int64) error {
+		if err := s.searchStore.Delete(ctx, strconv.FormatInt(postID, 10)); err != nil {
+			slog.Error("failed to delete post", "postID", postID, "error", err)
+			return err
+		}
+		return nil
+	}
+
 	go func() {
 		run := true
 
@@ -98,21 +114,19 @@ func (s *Server) ListenAndServe() error {
 					continue
 				}
 
-				ok = false
-
+				ctx := context.Background()
+				var err error
 				switch evt.Type {
 				case "posts.event.updated", "posts.event.created":
-					if err := s.searchStore.Index(context.Background(), evt.Value); err == nil {
-						ok = true
-					}
+					err = handleIndexEvent(ctx, evt.Value)
 				case "posts.event.deleted":
-					if err := s.searchStore.Delete(context.Background(), strconv.FormatInt(evt.Value.ID, 10)); err == nil {
-						ok = true
-					}
+					err = handleDeleteEvent(ctx, evt.Value.ID)
+				default:
+					slog.Warn("unsupported event type", "type", evt.Type)
 				}
 
-				if ok {
-					slog.Info("consumed kafka post msg", "type", evt.Type, "postId", evt.Value.ID)
+				if err == nil {
+					slog.Info("consumed Kafka post message", "type", evt.Type, "postID", evt.Value.ID)
 					commit(msg)
 				}
 			}
