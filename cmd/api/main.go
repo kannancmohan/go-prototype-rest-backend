@@ -15,11 +15,13 @@ import (
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	esv8 "github.com/elastic/go-elasticsearch/v8"
 	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/elasticsearch"
 	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
 	redis_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/redis/postgres"
@@ -46,6 +48,11 @@ func main() {
 		log.Fatalf("Error init kafka producer: %s", err)
 	}
 
+	es, err := initElasticSearch(env)
+	if err != nil {
+		log.Fatalf("Error init ElasticSearch: %s", err)
+	}
+
 	pStore := postgres.NewPostDBStore(db, env.ApiDBQueryTimeoutDuration)
 	uStore := postgres.NewUserDBStore(db, env.ApiDBQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
@@ -55,7 +62,9 @@ func main() {
 	cachedPStore := redis_postgres.NewPostStore(redis, pStore, env.ApiRedisCacheExpirationDuration)
 	cachedUStore := redis_postgres.NewUserStore(redis, uStore, env.ApiRedisCacheExpirationDuration)
 
-	s, _ := newServer(env, cachedPStore, cachedUStore, messageBrokerStore)
+	searchStore := elasticsearch.NewPostSearchIndexStore(es, env.ElasticIndexName)
+
+	s, _ := newServer(env, cachedPStore, cachedUStore, messageBrokerStore, searchStore)
 	errC := make(chan error, 1)        //channel to capture error while start/kill application
 	handleShutdown(s, db, redis, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
@@ -64,8 +73,8 @@ func main() {
 	}
 }
 
-func newServer(env *ApiEnvVar, pStore store.PostDBStore, uStore store.UserDBStore, messageBrokerStore store.PostMessageBrokerStore) (*http.Server, error) {
-	pService := service.NewPostService(pStore, messageBrokerStore)
+func newServer(env *EnvVar, pStore store.PostDBStore, uStore store.UserDBStore, messageBrokerStore store.PostMessageBrokerStore, searchStore store.PostSearchStore) (*http.Server, error) {
+	pService := service.NewPostService(pStore, messageBrokerStore, searchStore)
 	uService := service.NewUserService(uStore)
 
 	handler := handler.NewHandler(uService, pService)
@@ -127,7 +136,7 @@ func closeResources(db *sql.DB, redis *redis.Client) {
 	}
 }
 
-func initLogger(env *ApiEnvVar) error {
+func initLogger(env *EnvVar) error {
 	var level slog.Level
 	err := level.UnmarshalText([]byte(env.LogLevel))
 	if err != nil {
@@ -138,7 +147,7 @@ func initLogger(env *ApiEnvVar) error {
 	return nil
 }
 
-func initDB(env *ApiEnvVar) (*sql.DB, error) {
+func initDB(env *EnvVar) (*sql.DB, error) {
 	dbCfg := app_common.DBConfig{
 		Addr:         fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.ApiDBName, env.DBSslMode),
 		MaxOpenConns: env.ApiDBMaxOpenConns,
@@ -152,7 +161,7 @@ func initDB(env *ApiEnvVar) (*sql.DB, error) {
 	return db, nil
 }
 
-func initRedis(env *ApiEnvVar) (*redis.Client, error) {
+func initRedis(env *EnvVar) (*redis.Client, error) {
 	host := env.RedisHost
 	db := env.RedisDB
 	dbi, _ := strconv.Atoi(db)
@@ -166,7 +175,7 @@ func initRedis(env *ApiEnvVar) (*redis.Client, error) {
 	return rdb, nil
 }
 
-func initKafkaProducer(env *ApiEnvVar) (*kafka.Producer, error) {
+func initKafkaProducer(env *EnvVar) (*kafka.Producer, error) {
 	kafkaProd := app_common.KafkaProducerConfig{
 		Addr: env.KafkaHost,
 	}
@@ -175,4 +184,15 @@ func initKafkaProducer(env *ApiEnvVar) (*kafka.Producer, error) {
 		return nil, err
 	}
 	return p, nil
+}
+
+func initElasticSearch(env *EnvVar) (*esv8.Client, error) {
+	esConfig := app_common.ElasticSearchConfig{
+		Addr: env.ElasticHost,
+	}
+	es, err := esConfig.NewElasticSearch()
+	if err != nil {
+		return nil, err
+	}
+	return es, nil
 }

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
 
 type CreatePostPayload struct {
@@ -17,6 +18,13 @@ type UpdatePostPayload struct {
 	Title   string   `json:"title" validate:"omitempty,max=100"`
 	Content string   `json:"content" validate:"omitempty,max=1000"`
 	Tags    []string `json:"tags" validate:"omitempty"`
+}
+
+type SearchPostPayload struct {
+	Title   string   `json:"title"`
+	Content string   `json:"content"`
+	UserID  int64    `json:"user_id"`
+	Tags    []string `json:"tags"`
 }
 
 type PostHandler struct {
@@ -102,4 +110,24 @@ func (h *PostHandler) DeletePostHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	renderResponse(w, http.StatusOK, id)
+}
+
+func (h *PostHandler) SearchPostHandler(w http.ResponseWriter, r *http.Request) {
+	payload, err := readJSONValid[SearchPostPayload](w, r)
+	if err != nil {
+		renderErrorResponse(w, "invalid request", err)
+		return
+	}
+	ctx := r.Context()
+	res, err := h.service.Search(ctx, store.PostSearchReq{
+		Title:   payload.Title,
+		Content: payload.Content,
+		UserID:  payload.UserID,
+		Tags:    payload.Tags,
+	})
+	if err != nil {
+		renderErrorResponse(w, "search post failed", err)
+		return
+	}
+	renderResponse(w, http.StatusOK, res)
 }

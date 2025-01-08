@@ -7,7 +7,7 @@ import (
 	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 )
 
-type ApiEnvVar struct {
+type EnvVar struct {
 	ApiAddr                         string
 	LogLevel                        string
 	DBHost                          string
@@ -27,16 +27,18 @@ type ApiEnvVar struct {
 	ApiRedisCacheExpirationDuration time.Duration
 	KafkaHost                       string
 	KafkaProdTopic                  string
+	ElasticHost                     string
+	ElasticIndexName                string
 }
 
 // string representation to hide sensitive fields.
-func (e ApiEnvVar) String() string {
+func (e EnvVar) String() string {
 	return fmt.Sprintf("EnvVar{ApiAddr: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, MemCacheDHost: %s, RedisHost: %s, RedisDB: %s}", e.ApiAddr, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.MemCacheDHost, e.RedisHost, e.RedisDB)
 }
 
-func initApiEnvVar(envName string) *ApiEnvVar {
+func initApiEnvVar(envName string) *EnvVar {
 	env := app_common.NewEnvVarFetcher(envName, nil)
-	return &ApiEnvVar{
+	return &EnvVar{
 		ApiAddr:                   fmt.Sprintf(":%s", env.GetEnvString("PORT", "8080")),
 		LogLevel:                  env.GetEnvString("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
 		DBHost:                    env.GetEnvString("DB_HOST", "192.168.0.30"),
@@ -56,5 +58,7 @@ func initApiEnvVar(envName string) *ApiEnvVar {
 		ApiRedisCacheExpirationDuration: env.GetEnvDuration("API_REDIS_CACHE_EXPIRATION", "5m"),
 		KafkaHost:                       env.GetEnvString("KAFKA_HOST", "192.168.0.30:9093"),
 		KafkaProdTopic:                  env.GetEnvString("API_KAFKA_TOPIC", "posts"),
+		ElasticHost:                     env.GetEnvString("ELASTIC_HOST", "http://192.168.0.30:9200"),
+		ElasticIndexName:                env.GetEnvString("ELASTIC_POST_INDEX_NAME", "posts"),
 	}
 }

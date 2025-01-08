@@ -14,6 +14,7 @@ import (
 	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
 
 var validate *validator.Validate
@@ -33,6 +34,7 @@ type PostService interface {
 	Create(context.Context, dto.CreatePostReq) (*model.Post, error)
 	Update(context.Context, dto.UpdatePostReq) (*model.Post, error)
 	Delete(context.Context, int64) error
+	Search(context.Context, store.PostSearchReq) (store.PostSearchResp, error)
 }
 
 type Handler struct {

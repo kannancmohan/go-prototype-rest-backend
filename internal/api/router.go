@@ -63,6 +63,11 @@ func (rt *router) RegisterHandlers() http.Handler {
 			})
 		})
 
+		r.Route("/search/posts", func(r chi.Router) {
+			// r.Use(app.AuthTokenMiddleware)
+			r.Post("/", rt.handler.PostHandler.SearchPostHandler)
+		})
+
 		r.Route("/users", func(r chi.Router) {
 			//r.Put("/activate/{token}", app.activateUserHandler)
 

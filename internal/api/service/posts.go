@@ -11,10 +11,11 @@ import (
 type postService struct {
 	store          store.PostDBStore
 	msgBrokerStore store.PostMessageBrokerStore
+	searchStore    store.PostSearchStore
 }
 
-func NewPostService(store store.PostDBStore, msgBrokerStore store.PostMessageBrokerStore) *postService {
-	return &postService{store: store, msgBrokerStore: msgBrokerStore}
+func NewPostService(store store.PostDBStore, msgBrokerStore store.PostMessageBrokerStore, searchStore store.PostSearchStore) *postService {
+	return &postService{store: store, msgBrokerStore: msgBrokerStore, searchStore: searchStore}
 }
 
 // Explicitly ensuring that postService adheres to the PostService interface
@@ -68,4 +69,12 @@ func (p *postService) Delete(ctx context.Context, postID int64) error {
 		return err
 	}
 	return nil
+}
+
+func (p *postService) Search(ctx context.Context, req store.PostSearchReq) (store.PostSearchResp, error) {
+	res, err := p.searchStore.Search(ctx, req)
+	if err != nil {
+		return store.PostSearchResp{}, err
+	}
+	return res, nil
 }
