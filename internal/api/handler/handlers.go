@@ -11,8 +11,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
-	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
@@ -55,7 +55,7 @@ func readJSONValid[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 		return payload, err
 	}
 	if err := validate.Struct(payload); err != nil {
-		return payload, api_common.WrapErrorf(err, api_common.ErrorCodeBadRequest, "json validation")
+		return payload, common.WrapErrorf(err, common.ErrorCodeBadRequest, "json validation")
 	}
 	return payload, nil
 }
@@ -68,7 +68,7 @@ func readJSON[T any](w http.ResponseWriter, r *http.Request) (T, error) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&v); err != nil {
-		return v, api_common.WrapErrorf(err, api_common.ErrorCodeBadRequest, "json decoder")
+		return v, common.WrapErrorf(err, common.ErrorCodeBadRequest, "json decoder")
 	}
 	return v, nil
 }
@@ -77,7 +77,7 @@ func renderResponse[T any](w http.ResponseWriter, status int, v T) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(v); err != nil {
-		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "json encoder")
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "json encoder")
 	}
 	return nil
 }
@@ -92,21 +92,21 @@ func renderErrorResponse(w http.ResponseWriter, msg string, err error) {
 	status := http.StatusInternalServerError //default status
 	logLevel := slog.LevelInfo               //default log level
 
-	var ierr *api_common.Error
+	var ierr *common.Error
 	if !errors.As(err, &ierr) {
 		logLevel = slog.LevelError
 		resp.Error = "internal error"
 	} else {
 		switch ierr.Code() {
-		case api_common.ErrorCodeNotFound:
+		case common.ErrorCodeNotFound:
 			status = http.StatusNotFound
-		case api_common.ErrorCodeBadRequest:
+		case common.ErrorCodeBadRequest:
 			status = http.StatusBadRequest
 			origErr := ierr.Unwrap()
 			setValidationErrors(origErr, &resp)
-		case api_common.ErrorCodeConflict:
+		case common.ErrorCodeConflict:
 			status = http.StatusConflict
-		case api_common.ErrorCodeUnknown:
+		case common.ErrorCodeUnknown:
 			fallthrough
 		default:
 			logLevel = slog.LevelError
@@ -144,7 +144,7 @@ func setValidationErrors(origErr error, res *errorResponse) {
 func getIntParam(param string, r *http.Request) (int64, error) {
 	userID, err := strconv.ParseInt(chi.URLParam(r, param), 10, 64) //TODO
 	if err != nil {
-		return userID, api_common.WrapErrorf(err, api_common.ErrorCodeBadRequest, "invalid request")
+		return userID, common.WrapErrorf(err, common.ErrorCodeBadRequest, "invalid request")
 	}
 	return userID, nil
 }

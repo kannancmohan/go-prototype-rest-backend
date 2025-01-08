@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 
-	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/dto"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
@@ -35,8 +35,7 @@ func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUse
 
 	// hash the user password
 	if err := user.Password.Set(payload.Password); err != nil {
-		//app.internalServerError(w, r, err)
-		return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "error hashing password")
+		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error hashing password")
 	}
 
 	if err := u.store.Create(ctx, user); err != nil {
@@ -58,7 +57,7 @@ func (u *userService) Update(ctx context.Context, payload dto.UpdateUserReq) (*m
 	// hash the user password
 	if payload.Password != "" {
 		if err := user.Password.Set(payload.Password); err != nil {
-			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "error hashing password")
+			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error hashing password")
 		}
 	}
 

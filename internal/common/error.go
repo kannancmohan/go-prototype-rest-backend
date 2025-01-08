@@ -1,14 +1,11 @@
-package api_common
+package common
 
 import (
 	"fmt"
 )
 
 var (
-	ErrNotFound          = NewErrorf(ErrorCodeNotFound, "resource not found")
-	ErrConflict          = NewErrorf(ErrorCodeConflict, "resource already exists")
-	ErrDuplicateEmail    = NewErrorf(ErrorCodeBadRequest, "email already exists")
-	ErrDuplicateUsername = NewErrorf(ErrorCodeBadRequest, "username already exists")
+	ErrNotFound = NewErrorf(ErrorCodeNotFound, "resource not found")
 )
 
 type Error struct {

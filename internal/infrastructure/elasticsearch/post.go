@@ -10,19 +10,10 @@ import (
 
 	esv8 "github.com/elastic/go-elasticsearch/v8"
 	esv8api "github.com/elastic/go-elasticsearch/v8/esapi"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
-
-// type indexedPost struct {
-// 	ID        string   `json:"id"`
-// 	Title     string   `json:"title"`
-// 	Content   string   `json:"content"`
-// 	UserID    int64    `json:"user_id"`
-// 	Tags      []string `json:"tags"`
-// 	CreatedAt string   `json:"created_at"`
-// 	Version   int      `json:"version"`
-// }
 
 type postSearchIndexStore struct {
 	client *esv8.Client
@@ -99,7 +90,7 @@ func (p *postSearchIndexStore) Index(ctx context.Context, post model.Post) error
 
 func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearchReq) (store.PostSearchResp, error) {
 	if args.IsZero() {
-		return store.PostSearchResp{}, nil
+		return store.PostSearchResp{}, common.NewErrorf(common.ErrorCodeBadRequest, "invalid PostSearchReq")
 	}
 
 	// set Default values for `sort` , `from` &  `size` if not provided
@@ -165,7 +156,7 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
-		return store.PostSearchResp{}, fmt.Errorf("error encoding query to JSON: %w", err)
+		return store.PostSearchResp{}, common.WrapErrorf(err, common.ErrorCodeUnknown, "error encoding query to JSON")
 	}
 
 	req := esv8api.SearchRequest{
@@ -175,12 +166,12 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 
 	resp, err := req.Do(ctx, p.client)
 	if err != nil {
-		return store.PostSearchResp{}, fmt.Errorf("error executing search request: %w", err)
+		return store.PostSearchResp{}, common.WrapErrorf(err, common.ErrorCodeUnknown, "error executing search request")
 	}
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		return store.PostSearchResp{}, fmt.Errorf("error in search response: %s", resp.String())
+		return store.PostSearchResp{}, common.NewErrorf(common.ErrorCodeUnknown, "error in search response%s", resp.String())
 	}
 
 	var searchResult struct {
@@ -194,7 +185,7 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 		} `json:"hits"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&searchResult); err != nil {
-		return store.PostSearchResp{}, fmt.Errorf("error decoding search response: %w", err)
+		return store.PostSearchResp{}, common.WrapErrorf(err, common.ErrorCodeUnknown, "error decoding search response")
 	}
 
 	results := make([]store.IndexedPost, len(searchResult.Hits.Hits))

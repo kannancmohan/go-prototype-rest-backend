@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 )
 
@@ -27,9 +27,9 @@ func (s *roleStore) GetByName(ctx context.Context, slug string) (*model.Role, er
 	if err != nil {
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
-			return nil, api_common.ErrNotFound
+			return nil, common.ErrNotFound
 		default:
-			return nil, api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "role not found")
+			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "role not found")
 		}
 	}
 

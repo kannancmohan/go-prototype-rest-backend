@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
-	api_common "github.com/kannancmohan/go-prototype-rest-backend/internal/api/common"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 )
 
@@ -48,7 +48,7 @@ func (p *postMessageBrokerStore) publish(msgType string, post model.Post) error 
 	}
 
 	if err := json.NewEncoder(&b).Encode(evt); err != nil {
-		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "json.Encode")
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "json.Encode")
 	}
 
 	if err := p.producer.Produce(&kafka.Message{
@@ -58,7 +58,7 @@ func (p *postMessageBrokerStore) publish(msgType string, post model.Post) error 
 		},
 		Value: b.Bytes(),
 	}, nil); err != nil {
-		return api_common.WrapErrorf(err, api_common.ErrorCodeUnknown, "product.Producer")
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "product.Producer")
 	}
 
 	return nil
