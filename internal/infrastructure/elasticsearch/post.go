@@ -113,8 +113,8 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 		args.From = 0 // Start from the first result
 	}
 
-	should := make([]interface{}, 0, 4)
-
+	should := make([]interface{}, 0, 3)
+	// "should" condition
 	if args.Title != "" {
 		should = append(should, map[string]interface{}{
 			"match": map[string]interface{}{
@@ -131,14 +131,6 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 		})
 	}
 
-	if args.UserID > 0 {
-		should = append(should, map[string]interface{}{
-			"match": map[string]interface{}{
-				"user_id": args.UserID,
-			},
-		})
-	}
-
 	if len(args.Tags) > 0 {
 		should = append(should, map[string]interface{}{
 			"match": map[string]interface{}{
@@ -147,32 +139,29 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 		})
 	}
 
-	var query map[string]interface{}
-
-	if len(should) > 1 {
-		query = map[string]interface{}{
-			"query": map[string]interface{}{
-				"bool": map[string]interface{}{
-					"should": should,
-				},
+	must := make([]interface{}, 0, 1)
+	// "must" condition
+	if args.UserID > 0 {
+		must = append(must, map[string]interface{}{
+			"term": map[string]interface{}{
+				"user_id": args.UserID,
 			},
-		}
-	} else {
-		query = map[string]interface{}{
-			"query": should[0],
-		}
+		})
 	}
 
-	query["sort"] = []map[string]interface{}{
-		{args.Sort: map[string]string{"order": "asc"}}, // Default to ascending order
+	query := map[string]interface{}{
+		"query": map[string]interface{}{
+			"bool": map[string]interface{}{
+				"must":   must,   // Mandatory conditions
+				"should": should, // Optional conditions
+			},
+		},
+		"sort": []map[string]interface{}{
+			{args.Sort: map[string]string{"order": "asc"}}, // Default to ascending order
+		},
+		"from": args.From,
+		"size": args.Size,
 	}
-
-	// query["sort"] = []interface{}{
-	// 	map[string]interface{}{"id": "asc"},
-	// }
-
-	query["from"] = args.From
-	query["size"] = args.Size
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(query); err != nil {
