@@ -87,6 +87,7 @@ rest-backend
 
 ### Project Prerequisite 
 * golang
+* docker instance - required for running test
 * delve - [optional] for debugging go projects
 * air - [optional] for hot/live reloading go projects
 
