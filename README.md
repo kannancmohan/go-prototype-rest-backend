@@ -87,7 +87,7 @@ rest-backend
 
 ### Project Prerequisite 
 * golang
-* docker instance - required for running test
+* docker instance - required for running testcontainers related test. check shell.nix to configure remote docker
 * delve - [optional] for debugging go projects
 * air - [optional] for hot/live reloading go projects
 
@@ -124,6 +124,16 @@ make build
 ##### Run API App
 ```
 make run-api
+```
+
+##### Run API App Test
+```
+make test
+```
+
+##### Run API App Test (skip testcontainers related test)
+```
+make test-skip-docker-tests
 ```
 
 #### Search(elasticsearch) indexer App Build & Execution

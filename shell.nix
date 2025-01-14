@@ -46,19 +46,47 @@ pkgs.mkShellNoCC {
         fi
 
         if [ "${remoteDockerHost}" != "" ]; then
-            echo "Using remote Docker and setting ssh for the same"
-            export DOCKER_HOST="${remoteDockerHost}"
-            ## Start SSH agent if not already running
-            if [ -z "$SSH_AGENT_PID" ]; then
-                eval $(ssh-agent -s)
-                echo "SSH agent started with PID $SSH_AGENT_PID"
-            fi
-            ## Add host ssh keys
-            if $isMacOS; then
-                ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+            if [[ "${remoteDockerHost}" == ssh://* ]]; then
+                echo "Using remote Docker and setting ssh for the same"
+                
+                ## Extract username and IP from remoteDockerHost
+                sshUser=$(echo "${remoteDockerHost}" | sed -E 's|ssh://([^@]+)@.*|\1|')
+                sshIp=$(echo "${remoteDockerHost}" | sed -E 's|ssh://[^@]+@(.*)|\1|')
+                
+                ## Check if SSH access is possible to remotehost
+                if ssh -o BatchMode=yes -o ConnectTimeout=5 -q $sshUser@$sshIp exit; then
+                    echo "SSH access to $sshIp@$sshIp verified successfully."
+                else
+                    echo "Error: Unable to SSH into $username@$ip. Please check your SSH configuration and access permissions."
+                    exit 1
+                fi
+
+                ## Start SSH agent if not already running
+                if [ -z "$SSH_AGENT_PID" ]; then
+                    eval $(ssh-agent -s)
+                    echo "SSH agent started with PID $SSH_AGENT_PID"
+                fi
+                ## Add host ssh keys
+                if $isMacOS; then
+                    ssh-add --apple-use-keychain ~/.ssh/id_ed25519
+                else
+                    ssh-add ~/.ssh/id_ed25519
+                fi
+
+                ## SSH tunneling to remote host for using its docker instance 
+                rm -f /tmp/remote-docker-gotest.sock # remove remote-docker-gotest.sock if it already exists 
+                ssh -f -N -L /tmp/remote-docker-gotest.sock:/var/run/docker.sock $sshUser@$sshIp # do the ssh tunneling
+                
+                ## Set Docker and testcontainers env variables
+                export DOCKER_HOST=unix:///tmp/remote-docker-gotest.sock
+                export TESTCONTAINERS_HOST_OVERRIDE=$sshIp
+                export TESTCONTAINERS_RYUK_DISABLED=true # disabling ryuk for now. Reason: ryuk port binding is failing for some reason
+                
             else
-                ssh-add ~/.ssh/id_ed25519
+                echo "Invalid remoteDockerHost format. Expected 'ssh://<username>@<ip>'."
+                exit 1
             fi
+
         else
             echo "Using local Docker"
         fi

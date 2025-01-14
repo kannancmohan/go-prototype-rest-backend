@@ -1,6 +1,6 @@
 MIGRATIONS_PATH = ./cmd/migrate/migrations
 
-.PHONY: tidy gofmt build test run-api run-indexer lint migration-create migration-up migration-down
+.PHONY: tidy gofmt build test test-skip-docker-tests run-api run-indexer lint migration-create migration-up migration-down
 
 tidy:
 	@go mod tidy
@@ -14,6 +14,9 @@ build:
 
 test:
 	@go test -v ./...
+
+test-skip-docker-tests:
+	@go test -v -tags skip_docker_tests ./...
 
 run-api: build
 	@./bin/rest-api

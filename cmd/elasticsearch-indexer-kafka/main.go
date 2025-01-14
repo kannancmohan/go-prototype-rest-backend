@@ -17,7 +17,7 @@ import (
 	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/elasticsearch"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/search/elasticsearch"
 )
 
 type Server struct {
