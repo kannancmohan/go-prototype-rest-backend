@@ -21,10 +21,10 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/api/service"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/elasticsearch"
-	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/kafka"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
-	redis_postgres "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/redis/postgres"
+	redis_cache "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/cache/redis"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/db/postgres"
+	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/messagebroker/kafka"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/search/elasticsearch"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -59,8 +59,8 @@ func main() {
 
 	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(kafkaProd, env.KafkaProdTopic)
 
-	cachedPStore := redis_postgres.NewPostStore(redis, pStore, env.ApiRedisCacheExpirationDuration)
-	cachedUStore := redis_postgres.NewUserStore(redis, uStore, env.ApiRedisCacheExpirationDuration)
+	cachedPStore := redis_cache.NewPostStore(redis, pStore, env.ApiRedisCacheExpirationDuration)
+	cachedUStore := redis_cache.NewUserStore(redis, uStore, env.ApiRedisCacheExpirationDuration)
 
 	searchStore := elasticsearch.NewPostSearchIndexStore(es, env.ElasticIndexName)
 

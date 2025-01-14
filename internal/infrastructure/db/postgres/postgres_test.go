@@ -12,7 +12,7 @@ import (
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/postgres"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/db/postgres"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
 )
 

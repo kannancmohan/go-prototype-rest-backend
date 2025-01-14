@@ -1,4 +1,4 @@
-package redis_postgres
+package redis
 
 import (
 	"context"
