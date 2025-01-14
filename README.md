@@ -51,6 +51,7 @@ rest-backend
 │   │       ├── posts.go
 │   │       └── user.go
 │   ├── common
+│   │   ├── common.go
 │   │   ├── domain
 │   │   │   ├── model
 │   │   │   │   ├── post.go
@@ -60,27 +61,32 @@ rest-backend
 │   │   │       ├── messagebroker.go
 │   │   │       └── search.go
 │   │   └── error.go
-│   └── infrastructure
-│       ├── elasticsearch
-│       │   └── post.go
-│       ├── envvar
-│       ├── kafka
-│       │   └── post.go
-│       ├── postgres
-│       │   ├── postgres.go
-│       │   ├── posts.go
-│       │   ├── roles.go
-│       │   └── users.go
-│       └── redis
-│           └── postgres
-│               ├── posts.go
-│               ├── roles.go
-│               └── users.go
+│   ├── infrastructure
+│   │   ├── cache
+│   │   │   └── redis
+│   │   │       ├── posts.go
+│   │   │       ├── roles.go
+│   │   │       └── users.go
+│   │   ├── db
+│   │   │   └── postgres
+│   │   │       ├── postgres.go
+│   │   │       ├── postgres_test.go
+│   │   │       ├── posts.go
+│   │   │       ├── roles.go
+│   │   │       └── users.go
+│   │   ├── messagebroker
+│   │   │   └── kafka
+│   │   │       └── post.go
+│   │   └── search
+│   │       └── elasticsearch
+│   │           └── post.go
+│   └── testutils
+│       └── testcontainers_db.go
 ├── go.mod
 ├── go.sum
-├── docker-compose-dev-instance.yml
 ├── Makefile
 ├── README.md
+├── docker-compose-dev-instance.yml
 └── shell.nix
 ```
 ## Project setup 
@@ -124,19 +130,25 @@ make build
 ##### Run API App
 ```
 make run-api
+or
+go run cmd/api/*.go
 ```
 
 ##### Run API App Test
 ```
 make test
+or
+go test -v ./...
 ```
 
 ##### Run API App Test (skip testcontainers related test)
 ```
 make test-skip-docker-tests
+or
+go test -v -tags skip_docker_tests ./...
 ```
 
-#### Search(elasticsearch) indexer App Build & Execution
+#### Search indexer App Build & Execution
 
 ##### Build search indexer App
 ```
@@ -146,6 +158,8 @@ make build
 ##### Run search indexer App
 ```
 make run-indexer
+or
+go run cmd/elasticsearch-indexer-kafka/*.go
 ```
 
 #### Project DB migration
