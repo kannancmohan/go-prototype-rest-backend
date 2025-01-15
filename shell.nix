@@ -13,7 +13,7 @@ pkgs.mkShellNoCC {
         pkgs.go-migrate # for using go migration cli from https://github.com/golang-migrate/migrate
         pkgs.delve # debugger for Go
         pkgs.air # hot reload for Go
-        pkgs.clang # added for vs-code Go extension to work
+        pkgs.clang # added for vscode Go extension to work
         pkgs.golangci-lint
         ## direnv for project/shell specific env variables(see .envrc file)
         pkgs.direnv

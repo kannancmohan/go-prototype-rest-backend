@@ -1,3 +1,4 @@
+include .envrc
 MIGRATIONS_PATH = ./cmd/migrate/migrations
 
 .PHONY: tidy gofmt build test test-skip-docker-tests run-api run-indexer lint migration-create migration-up migration-down

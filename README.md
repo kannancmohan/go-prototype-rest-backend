@@ -125,6 +125,8 @@ adjust the generated '.air.toml' file to accommodate project specif changes
 ##### Build API App
 ```
 make build
+or
+go build ./...
 ```
 
 ##### Run API App
@@ -153,6 +155,8 @@ go test -v -tags skip_docker_tests ./...
 ##### Build search indexer App
 ```
 make build
+or
+go build ./...
 ```
 
 ##### Run search indexer App
