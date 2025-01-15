@@ -1,7 +1,7 @@
 include .envrc
 MIGRATIONS_PATH = ./cmd/migrate/migrations
 
-.PHONY: tidy gofmt build test test-skip-docker-tests run-api run-indexer lint migration-create migration-up migration-down
+.PHONY: tidy gofmt build gogenerate test test-skip-docker-tests run-api run-indexer lint migration-create migration-up migration-down
 
 tidy:
 	@go mod tidy
@@ -13,10 +13,13 @@ build:
 	@go build -o bin/rest-api cmd/api/*.go
 	@go build -o bin/search-indexer cmd/elasticsearch-indexer-kafka/*.go
 
-test:
+gogenerate:
+	@go generate ./...
+
+test: gogenerate
 	@go test -v ./...
 
-test-skip-docker-tests:
+test-skip-docker-tests: gogenerate
 	@go test -v -tags skip_docker_tests ./...
 
 run-api: build

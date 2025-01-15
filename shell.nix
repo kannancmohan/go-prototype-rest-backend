@@ -10,13 +10,15 @@ pkgs.mkShellNoCC {
         pkgs.tree # optional
         ## added for golang
         pkgs.go_1_22
-        pkgs.go-migrate # for using go migration cli from https://github.com/golang-migrate/migrate
         pkgs.delve # debugger for Go
         pkgs.air # hot reload for Go
         pkgs.clang # added for vscode Go extension to work
+        pkgs.cyrus_sasl # added for vscode Go extension to work
+        pkgs.direnv ## direnv for project/shell specific env variables(see .envrc file)
+        ## tools for the go project
         pkgs.golangci-lint
-        ## direnv for project/shell specific env variables(see .envrc file)
-        pkgs.direnv
+        pkgs.go-migrate # for using go migration cli from https://github.com/golang-migrate/migrate
+        pkgs.mockgen # for using mockgen cli from https://github.com/uber-go/mock 
         ## added golang testing
         pkgs.docker
     ] ++ (if pkgs.stdenv.isDarwin then [ 

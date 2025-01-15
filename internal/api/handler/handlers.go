@@ -17,10 +17,21 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
 
+//go:generate mockgen -destination=../service/mocks/mock_user.go -package=mockservice github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler UserService
+//go:generate mockgen -destination=../service/mocks/mock_posts.go -package=mockservice github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler PostService
+
 var validate *validator.Validate
 
 func init() {
 	validate = validator.New(validator.WithRequiredStructEnabled())
+
+	// Custom struct validation for checking updatePostPayload struct
+	validate.RegisterStructValidation(func(sl validator.StructLevel) {
+		payload := sl.Current().Interface().(updatePostPayload)
+		if payload.Title == "" && payload.Content == "" && len(payload.Tags) < 1 {
+			sl.ReportError(payload, "updatePostPayload", "updatePostPayload", "atleastone=title content tags", "")
+		}
+	}, updatePostPayload{})
 }
 
 type UserService interface {

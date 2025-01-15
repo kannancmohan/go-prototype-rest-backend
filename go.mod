@@ -9,6 +9,7 @@ require (
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/lib/pq v1.10.9
 	github.com/testcontainers/testcontainers-go v0.34.0
+	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.30.0
 )
 
