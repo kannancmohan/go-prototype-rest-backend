@@ -6,6 +6,8 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 )
 
+//go:generate mockgen -destination=mocks/mock_db.go -package=mockstore github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store PostDBStore,RoleDBStore,UserDBStore
+
 // store interface for persisting user,role & post. In this case, to postgres db
 type PostDBStore interface {
 	GetByID(context.Context, int64) (*model.Post, error)
