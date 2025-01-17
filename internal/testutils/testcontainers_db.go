@@ -43,53 +43,53 @@ func ApplyDBMigrations(db *sql.DB) error {
 
 var (
 	dbContainerInstances sync.Map // Map to store containers by schema name
-	mutex                sync.Mutex
+	dbMutex              sync.Mutex
 )
 
-type ContainerInfo struct {
+type DBContainerInfo struct {
 	Container testcontainers.Container
 	DB        *sql.DB
 }
 
 type DBCleanupFunc func(ctx context.Context) error
 
-func StartDBTestContainer(schemaName string) (*sql.DB, DBCleanupFunc, error) {
+func StartPostgresDBTestContainer(schemaName string) (*sql.DB, DBCleanupFunc, error) {
 
-	mutex.Lock()
-	defer mutex.Unlock()
+	dbMutex.Lock()
+	defer dbMutex.Unlock()
 
 	ctx := context.Background()
 
 	// Check if a container for this schema already exists
 	if instance, ok := dbContainerInstances.Load(schemaName); ok {
-		info := instance.(*ContainerInfo)
+		info := instance.(*DBContainerInfo)
 		return info.DB, func(ctx context.Context) error { return nil }, nil // No-op cleanup for reused container
 	}
 
-	container, err := createTestContainer(ctx, schemaName, "test", "test")
+	container, err := createPostgresTestContainer(ctx, schemaName, "test", "test")
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to start Postgres container: %w", err)
 	}
 
-	db, err := createDBInstance(ctx, container, schemaName, "test", "test")
+	db, err := createPostgresDBInstance(ctx, container, schemaName, "test", "test")
 	if err != nil {
 		container.Terminate(ctx) // Ensure cleanup
 		return nil, nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	dbContainerInstances.Store(schemaName, &ContainerInfo{
+	dbContainerInstances.Store(schemaName, &DBContainerInfo{
 		Container: container,
 		DB:        db,
 	})
 
 	cleanupFunc := func(ctx context.Context) error {
-		mutex.Lock()
-		defer mutex.Unlock()
+		dbMutex.Lock()
+		defer dbMutex.Unlock()
 
 		if instance, ok := dbContainerInstances.Load(schemaName); ok {
 			dbContainerInstances.Delete(schemaName)
 
-			info := instance.(*ContainerInfo)
+			info := instance.(*DBContainerInfo)
 			info.DB.Close() // Close the database connection
 
 			err := info.Container.Terminate(ctx)
@@ -103,7 +103,7 @@ func StartDBTestContainer(schemaName string) (*sql.DB, DBCleanupFunc, error) {
 	return db, cleanupFunc, nil
 }
 
-func createTestContainer(ctx context.Context, schemaName, dbUser, dbUserPwd string) (ctr *pgtc.PostgresContainer, err error) {
+func createPostgresTestContainer(ctx context.Context, schemaName, dbUser, dbUserPwd string) (ctr *pgtc.PostgresContainer, err error) {
 
 	ctr, err = pgtc.Run(
 		ctx,
@@ -124,7 +124,7 @@ func createTestContainer(ctx context.Context, schemaName, dbUser, dbUserPwd stri
 	return ctr, nil
 }
 
-func createDBInstance(ctx context.Context, container testcontainers.Container, schemaName, dbUser, dbUserPwd string) (*sql.DB, error) {
+func createPostgresDBInstance(ctx context.Context, container testcontainers.Container, schemaName, dbUser, dbUserPwd string) (*sql.DB, error) {
 	host, err := container.Host(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get container host: %w", err)
