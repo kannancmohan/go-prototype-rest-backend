@@ -177,14 +177,14 @@ func createKafkaTestContainer(ctx context.Context, clusterID, exposedPort string
 }
 
 func getKafkaBrokerAddress(ctx context.Context, container testcontainers.Container, exposedPort string) (string, error) {
-	mappedPort, err := container.MappedPort(ctx, nat.Port(exposedPort))
+	_, err := container.MappedPort(ctx, nat.Port(exposedPort))
 	if err != nil {
 		return "", err
 	}
 
-	host, err := container.Host(ctx)
+	broker, err := container.PortEndpoint(ctx, nat.Port(exposedPort+"/tcp"), "")
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s:%d", host, mappedPort.Int()), nil
+	return broker, nil
 }
