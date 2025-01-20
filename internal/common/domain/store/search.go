@@ -6,6 +6,8 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 )
 
+//go:generate mockgen -destination=mocks/mock_search.go -package=mockstore github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store PostSearchStore,PostSearchIndexStore
+
 type IndexedPost struct {
 	ID        string   `json:"id"`
 	Title     string   `json:"title"`

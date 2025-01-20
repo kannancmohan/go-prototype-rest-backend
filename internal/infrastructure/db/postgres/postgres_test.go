@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 	var err error
 	var cleanupFunc testutils.DBCleanupFunc
 
-	testDB, cleanupFunc, err = testutils.StartDBTestContainer("testpg")
+	testDB, cleanupFunc, err = testutils.StartPostgresDBTestContainer("testpg")
 	if err != nil {
 		log.Fatalf("Failed to start TestContainer: %v", err)
 	}

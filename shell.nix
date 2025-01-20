@@ -82,6 +82,7 @@ pkgs.mkShellNoCC {
                 ## Set Docker and testcontainers env variables
                 export DOCKER_HOST=unix:///tmp/remote-docker-gotest.sock
                 export TESTCONTAINERS_HOST_OVERRIDE=$sshIp
+                #export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
                 export TESTCONTAINERS_RYUK_DISABLED=true # disabling ryuk for now. Reason: ryuk port binding is failing for some reason
                 
             else

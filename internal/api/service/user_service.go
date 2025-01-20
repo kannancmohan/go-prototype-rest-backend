@@ -32,6 +32,9 @@ func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUse
 			Name: payload.Role,
 		},
 	}
+	if payload.Password == "" {
+		return nil, common.NewErrorf(common.ErrorCodeBadRequest, "invalid password")
+	}
 
 	// hash the user password
 	if err := user.Password.Set(payload.Password); err != nil {
