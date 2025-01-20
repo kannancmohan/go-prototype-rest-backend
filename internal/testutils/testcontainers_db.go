@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,14 +19,38 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+func getMigrationSourcePath() string {
+	path, exists := os.LookupEnv("MIGRATIONS_PATH")
+	if exists {
+		if strings.HasPrefix(path, "file://") {
+			return path
+		}
+		return "file://" + path
+	}
+	rootDir, _ := common.GetRootDir()
+	return "file://" + rootDir + "/cmd/migrate/migrations"
+}
+
+func ApplyDBMigrationsWithDBUrl(dbUrl string) error {
+	migrationDir := getMigrationSourcePath()
+	m, err := migrate.New(migrationDir, dbUrl)
+	if err != nil {
+		return err
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
+}
+
 func ApplyDBMigrations(db *sql.DB) error {
 	driver, err := pgMigrate.WithInstance(db, &pgMigrate.Config{})
 	if err != nil {
 		return err
 	}
-
-	rootDir, _ := common.GetRootDir()
-	migrationDir := "file://" + rootDir + "/cmd/migrate/migrations"
+	migrationDir := getMigrationSourcePath()
 	m, err := migrate.NewWithDatabaseInstance(
 		migrationDir,
 		"postgres",
