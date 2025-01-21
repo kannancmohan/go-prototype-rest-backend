@@ -62,7 +62,10 @@ func main() {
 	cachedPStore := redis_cache.NewPostStore(redis, pStore, env.ApiRedisCacheExpirationDuration)
 	cachedUStore := redis_cache.NewUserStore(redis, uStore, env.ApiRedisCacheExpirationDuration)
 
-	searchStore := elasticsearch.NewPostSearchIndexStore(es, env.ElasticIndexName)
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(es, env.ElasticIndexName)
+	if err != nil {
+		log.Fatalf("Error init PostSearchIndexStore: %s", err)
+	}
 
 	s, _ := newServer(env, cachedPStore, cachedUStore, messageBrokerStore, searchStore)
 	errC := make(chan error, 1)        //channel to capture error while start/kill application

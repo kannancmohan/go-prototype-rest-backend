@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	esv8 "github.com/elastic/go-elasticsearch/v8"
 	esv8api "github.com/elastic/go-elasticsearch/v8/esapi"
@@ -20,11 +21,17 @@ type postSearchIndexStore struct {
 	index  string
 }
 
-func NewPostSearchIndexStore(client *esv8.Client, index string) *postSearchIndexStore {
+func NewPostSearchIndexStore(client *esv8.Client, index string) (*postSearchIndexStore, error) {
+
+	err := ensureIndexExists(context.Background(), client, index)
+	if err != nil {
+		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error ensuring index exists")
+	}
+
 	return &postSearchIndexStore{
 		client: client,
 		index:  index,
-	}
+	}, nil
 }
 
 func (p *postSearchIndexStore) Delete(ctx context.Context, id string) error {
@@ -59,12 +66,8 @@ func (p *postSearchIndexStore) Index(ctx context.Context, post model.Post) error
 		Content:   post.Content,
 		UserID:    post.UserID,
 		Tags:      post.Tags,
+		CreatedAt: post.CreatedAt,
 		Version:   post.Version,
-	}
-
-	
-	if post.CreatedAt != "" {// Only set CreatedAt if it's non-empty
-		body.CreatedAt = post.CreatedAt
 	}
 
 	var buf bytes.Buffer
@@ -205,4 +208,54 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 		Total:   searchResult.Hits.Total.Value,
 	}, nil
 
+}
+
+func ensureIndexExists(ctx context.Context, client *esv8.Client, index string) error {
+	resp, err := esv8api.IndicesExistsRequest{
+		Index: []string{index},
+	}.Do(ctx, client)
+
+	if err != nil {
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "error checking if index exists")
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		// If index does not exist, create it with proper mapping
+		if resp.StatusCode == http.StatusNotFound {
+			if err := createIndexWithMapping(ctx, client, index); err != nil {
+				return err
+			}
+		} else {
+			return common.NewErrorf(common.ErrorCodeUnknown, "error checking if index exists: %s", resp.String())
+		}
+	}
+	return nil
+}
+
+func createIndexWithMapping(ctx context.Context, client *esv8.Client, index string) error {
+	esFieldMappings := `
+	{
+		"mappings": {
+			"properties": {
+				"created_at": {"type": "date", "ignore_malformed": true}
+			}
+		}
+	}`
+
+	resp, err := esv8api.IndicesCreateRequest{
+		Index: index,
+		Body:  strings.NewReader(esFieldMappings),
+	}.Do(ctx, client)
+
+	if err != nil {
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "error creating index or setting mapping")
+	}
+	defer resp.Body.Close()
+
+	if resp.IsError() {
+		return common.NewErrorf(common.ErrorCodeUnknown, "error creating index: %s", resp.String())
+	}
+
+	return nil
 }
