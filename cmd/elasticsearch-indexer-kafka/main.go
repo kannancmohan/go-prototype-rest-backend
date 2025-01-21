@@ -41,7 +41,10 @@ func main() {
 		log.Fatalf("Error init KafkaConsumer: %s", err)
 	}
 
-	searchStore := elasticsearch.NewPostSearchIndexStore(es, env.ElasticIndexName)
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(es, env.ElasticIndexName)
+	if err != nil {
+		log.Fatalf("Error init PostSearchIndexStore: %s", err)
+	}
 
 	s := &Server{
 		kafka:       kafka,

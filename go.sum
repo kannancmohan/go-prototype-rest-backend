@@ -343,6 +343,8 @@ github.com/testcontainers/testcontainers-go v0.35.0 h1:uADsZpTKFAtp8SLK+hMwSaa+X
 github.com/testcontainers/testcontainers-go v0.35.0/go.mod h1:oEVBj5zrfJTrgjwONs1SsRbnBtH9OKl+IGl3UMcr2B4=
 github.com/testcontainers/testcontainers-go/modules/compose v0.33.0 h1:PyrUOF+zG+xrS3p+FesyVxMI+9U+7pwhZhyFozH3jKY=
 github.com/testcontainers/testcontainers-go/modules/compose v0.33.0/go.mod h1:oqZaUnFEskdZriO51YBquku/jhgzoXHPot6xe1DqKV4=
+github.com/testcontainers/testcontainers-go/modules/elasticsearch v0.35.0 h1:rDmyDK7URBMIJCK66fG7B+yhxBSlIWCw+/5sX4b0cHs=
+github.com/testcontainers/testcontainers-go/modules/elasticsearch v0.35.0/go.mod h1:KEfm2TF2HBh2ysNyXYzjPCm6mAJtIqoxttXic8Pvtl8=
 github.com/testcontainers/testcontainers-go/modules/kafka v0.35.0 h1:tvlNELjn78feiIBsWgyX8E/G09suhnpUIh5fqyJpfBs=
 github.com/testcontainers/testcontainers-go/modules/kafka v0.35.0/go.mod h1:lorHXVvVl3vnX0v1aID54iFfR120RTpu2dKE2ZHMLA0=
 github.com/testcontainers/testcontainers-go/modules/postgres v0.34.0 h1:c51aBXT3v2HEBVarmaBnsKzvgZjC5amn0qsj8Naqi50=
