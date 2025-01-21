@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"net/http"
 	"strconv"
 
 	esv8 "github.com/elastic/go-elasticsearch/v8"
@@ -39,6 +40,9 @@ func (p *postSearchIndexStore) Delete(ctx context.Context, id string) error {
 	defer resp.Body.Close()
 
 	if resp.IsError() {
+		if resp.StatusCode == http.StatusNotFound {
+			return common.ErrNotFound
+		}
 		return common.NewErrorf(common.ErrorCodeUnknown, "error deleting index post id=%s: err=%s", id, resp.String())
 	}
 
@@ -55,8 +59,12 @@ func (p *postSearchIndexStore) Index(ctx context.Context, post model.Post) error
 		Content:   post.Content,
 		UserID:    post.UserID,
 		Tags:      post.Tags,
-		CreatedAt: post.CreatedAt,
 		Version:   post.Version,
+	}
+
+	
+	if post.CreatedAt != "" {// Only set CreatedAt if it's non-empty
+		body.CreatedAt = post.CreatedAt
 	}
 
 	var buf bytes.Buffer
@@ -123,7 +131,7 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 
 	if len(args.Tags) > 0 {
 		should = append(should, map[string]interface{}{
-			"match": map[string]interface{}{
+			"terms": map[string]interface{}{
 				"tags": args.Tags,
 			},
 		})
