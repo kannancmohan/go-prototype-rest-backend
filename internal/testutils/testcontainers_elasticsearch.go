@@ -88,6 +88,7 @@ func createElasticsearchTestContainer(ctx context.Context, containerName string)
 		testcontainers.WithEnv(
 			map[string]string{
 				"xpack.security.enabled": "false",
+				"ES_JAVA_OPTS":           "-Xms512m -Xmx512m",
 			},
 		),
 		testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{

@@ -146,6 +146,13 @@ func TestPostSearchIndexStore_Search(t *testing.T) {
 			},
 			expPostIds: []string{"1234", "4321"},
 		},
+		{
+			name: "search with user",
+			req: store.PostSearchReq{
+				UserID: 100,
+			},
+			expPostIds: []string{"1234", "4321"},
+		},
 	}
 
 	store, _ := elasticsearch.NewPostSearchIndexStore(testESClient, "test_posts_index")
