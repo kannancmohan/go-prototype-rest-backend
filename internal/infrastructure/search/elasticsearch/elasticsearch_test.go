@@ -1,3 +1,5 @@
+//go:build !skip_docker_tests
+
 package elasticsearch_test
 
 import (
@@ -19,7 +21,7 @@ var testESClient *esv8.Client
 
 func TestMain(m *testing.M) {
 	var err error
-	var cleanupFunc testutils.DBCleanupFunc
+	var cleanupFunc testutils.ESCleanupFunc
 
 	testESClient, cleanupFunc, err = testutils.StartElasticsearchTestContainer("")
 	if err != nil {

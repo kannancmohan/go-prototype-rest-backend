@@ -74,7 +74,7 @@ var (
 
 type DBContainerInfo struct {
 	Container testcontainers.Container
-	DB        *sql.DB
+	DBClient  *sql.DB
 }
 
 type DBCleanupFunc func(ctx context.Context) error
@@ -89,7 +89,7 @@ func StartPostgresDBTestContainer(schemaName string) (*sql.DB, DBCleanupFunc, er
 	// Check if a container for this schema already exists
 	if instance, ok := dbContainerInstances.Load(schemaName); ok {
 		info := instance.(*DBContainerInfo)
-		return info.DB, func(ctx context.Context) error { return nil }, nil // No-op cleanup for reused container
+		return info.DBClient, func(ctx context.Context) error { return nil }, nil // No-op cleanup for reused container
 	}
 
 	container, err := createPostgresTestContainer(ctx, schemaName, "test", "test")
@@ -105,7 +105,7 @@ func StartPostgresDBTestContainer(schemaName string) (*sql.DB, DBCleanupFunc, er
 
 	dbContainerInstances.Store(schemaName, &DBContainerInfo{
 		Container: container,
-		DB:        db,
+		DBClient:  db,
 	})
 
 	cleanupFunc := func(ctx context.Context) error {
@@ -116,7 +116,7 @@ func StartPostgresDBTestContainer(schemaName string) (*sql.DB, DBCleanupFunc, er
 			dbContainerInstances.Delete(schemaName)
 
 			info := instance.(*DBContainerInfo)
-			info.DB.Close() // Close the database connection
+			info.DBClient.Close() // Close the database connection
 
 			err := info.Container.Terminate(ctx)
 			if err != nil {

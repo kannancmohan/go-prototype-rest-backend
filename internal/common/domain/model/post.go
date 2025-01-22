@@ -12,3 +12,7 @@ type Post struct {
 	//Comments  []Comment `json:"comments"`
 	User User `json:"user"`
 }
+
+func (p *Post) BasicSanityCheck() bool {
+	return p != nil && p.ID > 0
+}

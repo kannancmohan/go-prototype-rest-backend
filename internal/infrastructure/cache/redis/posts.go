@@ -95,6 +95,9 @@ func (s *postStore) cachePost(ctx context.Context, post *model.Post) error {
 	if err != nil {
 		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal post")
 	}
+	if !post.BasicSanityCheck() {
+		return common.WrapErrorf(err, common.ErrorCodeBadRequest, "post to cache is invalid")
+	}
 	cacheKey := postCacheKey(post.ID)
 	s.client.Set(ctx, cacheKey, postJSON, s.expiration)
 	return nil

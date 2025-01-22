@@ -80,6 +80,7 @@ require (
 	github.com/testcontainers/testcontainers-go/modules/elasticsearch v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/kafka v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.34.0
+	github.com/testcontainers/testcontainers-go/modules/redis v0.35.0
 	golang.org/x/net v0.29.0 // indirect
 	golang.org/x/sys v0.28.0 // indirect
 	golang.org/x/text v0.21.0 // indirect
