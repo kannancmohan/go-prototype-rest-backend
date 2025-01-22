@@ -1,3 +1,5 @@
+//go:build !skip_docker_tests
+
 package redis_test
 
 import (
