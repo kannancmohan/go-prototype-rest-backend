@@ -20,12 +20,12 @@ var (
 
 type ESContainerInfo struct {
 	Container testcontainers.Container
-	ES        *esv8.Client
+	ESClient  *esv8.Client
 }
 
 type ESCleanupFunc func(ctx context.Context) error
 
-func StartElasticsearchTestContainer(containerName string) (*esv8.Client, DBCleanupFunc, error) {
+func StartElasticsearchTestContainer(containerName string) (*esv8.Client, ESCleanupFunc, error) {
 	if containerName == "" {
 		containerName = fmt.Sprintf("es-instance-%s", uuid.New().String())
 	}
@@ -38,7 +38,7 @@ func StartElasticsearchTestContainer(containerName string) (*esv8.Client, DBClea
 	// Check if a container for this containerName already exists
 	if instance, ok := esContainerInstances.Load(containerName); ok {
 		info := instance.(*ESContainerInfo)
-		return info.ES, func(ctx context.Context) error { return nil }, nil // No-op cleanup for reused container
+		return info.ESClient, func(ctx context.Context) error { return nil }, nil // No-op cleanup for reused container
 	}
 
 	container, err := createElasticsearchTestContainer(ctx, containerName)
@@ -56,7 +56,7 @@ func StartElasticsearchTestContainer(containerName string) (*esv8.Client, DBClea
 
 	esContainerInstances.Store(containerName, &ESContainerInfo{
 		Container: container,
-		ES:        client,
+		ESClient:  client,
 	})
 
 	cleanupFunc := func(ctx context.Context) error {
