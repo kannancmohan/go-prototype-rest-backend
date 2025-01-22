@@ -83,16 +83,11 @@ func createRedisTestContainer(ctx context.Context, containerName string) (*redis
 		"redis:7-alpine",
 		//redistc.WithSnapshotting(10, 1),
 		redistc.WithLogLevel(redistc.LogLevelVerbose),
-		//testcontainers.WithLogger(testcontainers.TestLogger(t)),
-		//WithTestLogConsumer(t),
-		// testcontainers.WithWaitStrategy(
-		// 	wait.ForAll(
-		// 		wait.ForLog("* Ready to accept connections"),
-		// 		wait.ForExposedPort(),
-		// 		wait.ForListeningPort(nat.Port(exposedPort)),
-		// 		wait.ForExec(waitReadyCmd),
-		// 	),
-		// ),
+		testcontainers.CustomizeRequest(testcontainers.GenericContainerRequest{
+			ContainerRequest: testcontainers.ContainerRequest{
+				Name: containerName,
+			},
+		}),
 	)
 	if err != nil {
 		return nil, err
