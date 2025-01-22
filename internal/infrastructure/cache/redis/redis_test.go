@@ -120,7 +120,7 @@ func TestPostStore_Update(t *testing.T) {
 		t.Errorf("Adding test data for PostStore.update failed. Received error %v", err)
 	}
 
-	successTestPost := &model.Post{
+	updatedTestPost := &model.Post{
 		ID:      2,
 		Title:   "test-title-updated-1",
 		Content: "test-content-updated-1",
@@ -136,14 +136,14 @@ func TestPostStore_Update(t *testing.T) {
 	}{
 		{
 			name: "success",
-			post: successTestPost,
+			post: updatedTestPost,
 			dbStoreSetup: func(tb testing.TB) *mockstore.MockPostDBStore {
 				tb.Helper()
 				ms := mockstore.NewMockPostDBStore(gomock.NewController(t))
-				ms.EXPECT().Update(gomock.Any(), gomock.Any()).Return(successTestPost, nil)
+				ms.EXPECT().Update(gomock.Any(), gomock.Any()).Return(updatedTestPost, nil)
 				return ms
 			},
-			expResp: successTestPost,
+			expResp: updatedTestPost,
 		},
 		{
 			name: "update caching should fail on dbstore error",
@@ -253,25 +253,25 @@ func TestPostStore_GetByID(t *testing.T) {
 
 	ctx := context.Background()
 
-	// add test data to redis
-	err := createTestPost(t, ctx, []model.Post{
-		{
-			ID:      4,
-			Title:   "test-title-1",
-			Content: "test-content-1",
-			UserID:  400,
-		},
-	})
-
-	if err != nil {
-		t.Errorf("Adding test data for PostStore.GetByID failed. Received error %v", err)
-	}
-
-	successTestPost := &model.Post{
+	alreadyCachedPost := &model.Post{
 		ID:      4,
 		Title:   "test-title-1",
 		Content: "test-content-1",
 		UserID:  400,
+	}
+
+	newlyCachedPost := &model.Post{
+		ID:      5,
+		Title:   "test-title-1",
+		Content: "test-content-1",
+		UserID:  500,
+	}
+
+	// add test data to redis
+	err := createTestPost(t, ctx, []model.Post{*alreadyCachedPost})
+
+	if err != nil {
+		t.Errorf("Adding test data for PostStore.GetByID failed. Received error %v", err)
 	}
 
 	testCases := []struct {
@@ -282,19 +282,29 @@ func TestPostStore_GetByID(t *testing.T) {
 		expResp      *model.Post
 	}{
 		{
-			name:   "success",
-			postID: 3,
+			name:   "success - get already cached post",
+			postID: alreadyCachedPost.ID,
 			dbStoreSetup: func(tb testing.TB) *mockstore.MockPostDBStore {
 				tb.Helper()
 				ms := mockstore.NewMockPostDBStore(gomock.NewController(t))
-				ms.EXPECT().GetByID(gomock.Any(), gomock.Any()).Return(successTestPost, nil)
 				return ms
 			},
-			expResp: successTestPost,
+			expResp: alreadyCachedPost,
+		},
+		{
+			name:   "success - get newly cached post",
+			postID: newlyCachedPost.ID,
+			dbStoreSetup: func(tb testing.TB) *mockstore.MockPostDBStore {
+				tb.Helper()
+				ms := mockstore.NewMockPostDBStore(gomock.NewController(t))
+				ms.EXPECT().GetByID(gomock.Any(), gomock.Any()).Return(newlyCachedPost, nil)
+				return ms
+			},
+			expResp: newlyCachedPost,
 		},
 		{
 			name:   "GetByID should fail on dbstore error",
-			postID: 3,
+			postID: 6,
 			dbStoreSetup: func(tb testing.TB) *mockstore.MockPostDBStore {
 				tb.Helper()
 				ms := mockstore.NewMockPostDBStore(gomock.NewController(t))
