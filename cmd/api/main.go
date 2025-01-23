@@ -25,7 +25,7 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/db/postgres"
 	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/messagebroker/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/search/elasticsearch"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/internalsecret"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/envvarsecret"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -145,7 +145,7 @@ func closeResources(db *sql.DB, redis *redis.Client) {
 }
 
 func initSecret(envFileName string) (*EnvVar, error) {
-	secretStore := internalsecret.NewSecretFetchStore(envFileName)
+	secretStore := envvarsecret.NewSecretFetchStore(envFileName)
 	return initEnvVar(secretStore), nil
 }
 

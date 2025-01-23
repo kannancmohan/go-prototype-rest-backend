@@ -18,7 +18,7 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/search/elasticsearch"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/internalsecret"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/envvarsecret"
 )
 
 type Server struct {
@@ -184,7 +184,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func initSecret(envFileName string) (*EnvVar, error) {
-	secretStore := internalsecret.NewSecretFetchStore(envFileName)
+	secretStore := envvarsecret.NewSecretFetchStore(envFileName)
 	return initEnvVar(secretStore), nil
 }
 

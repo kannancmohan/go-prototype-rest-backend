@@ -1,4 +1,4 @@
-package internalsecret
+package envvarsecret
 
 import (
 	"log"
