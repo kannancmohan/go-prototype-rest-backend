@@ -23,9 +23,14 @@ func TestMain(m *testing.M) {
 	var err error
 	var cleanupFunc testutils.ESCleanupFunc
 
-	testESClient, cleanupFunc, err = testutils.StartElasticsearchTestContainer("")
+	pgTest := testutils.NewTestElasticsearchContainer()
+	container, cleanupFunc, err := pgTest.CreateElasticsearchTestContainer("")
 	if err != nil {
-		log.Fatalf("Failed to start Elasticsearch TestContainer: %v", err)
+		log.Fatalf("Failed to start elasticsearch TestContainer: %v", err)
+	}
+	testESClient, err = pgTest.CreateElasticsearchInstance(container)
+	if err != nil {
+		log.Fatalf("Failed to init elasticsearch: %v", err)
 	}
 
 	code := m.Run()
