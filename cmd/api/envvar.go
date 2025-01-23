@@ -21,7 +21,6 @@ type EnvVar struct {
 	ApiDBMaxIdleConns               int
 	ApiDBMaxIdleTime                time.Duration
 	ApiCorsAllowedOrigin            string
-	MemCacheDHost                   string
 	RedisHost                       string
 	RedisDB                         string
 	ApiRedisCacheExpirationDuration time.Duration
@@ -33,7 +32,7 @@ type EnvVar struct {
 
 // string representation to hide sensitive fields.
 func (e EnvVar) String() string {
-	return fmt.Sprintf("EnvVar{ApiAddr: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, MemCacheDHost: %s, RedisHost: %s, RedisDB: %s}", e.ApiAddr, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.MemCacheDHost, e.RedisHost, e.RedisDB)
+	return fmt.Sprintf("EnvVar{ApiAddr: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, RedisHost: %s, RedisDB: %s}", e.ApiAddr, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.RedisHost, e.RedisDB)
 }
 
 func initEnvVar(sec store.SecretFetchStore) *EnvVar {
@@ -51,7 +50,6 @@ func initEnvVar(sec store.SecretFetchStore) *EnvVar {
 		//ApiDBMaxIdleConns:    getInt("DB_MAX_IDLE_CONNS", 30),
 		ApiDBMaxIdleTime:                sec.GetEnvDuration("DB_MAX_IDLE_TIME", "15m"),
 		ApiCorsAllowedOrigin:            sec.GetEnvString("CORS_ALLOWED_ORIGIN", "http://localhost:8080"),
-		MemCacheDHost:                   sec.GetEnvString("MEMCACHED_HOST", "192.168.0.30:11211"),
 		RedisHost:                       sec.GetEnvString("REDIS_HOST", "192.168.0.30:6379"),
 		RedisDB:                         sec.GetEnvString("REDIS_DB", "socialnetwork"),
 		ApiRedisCacheExpirationDuration: sec.GetEnvDuration("API_REDIS_CACHE_EXPIRATION", "5m"),
