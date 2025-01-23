@@ -18,6 +18,7 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/search/elasticsearch"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/internalsecret"
 )
 
 type Server struct {
@@ -29,8 +30,11 @@ type Server struct {
 
 func main() {
 
-	envName := app_common.GetEnvNameFromCommandLine()
-	env := initEnvVar(envName)
+	env, err := initSecret(app_common.GetEnvNameFromCommandLine())
+	if err != nil {
+		log.Fatalf("Error init secret: %s", err)
+	}
+
 	initLogger(env) // error ignored on purpose
 	es, err := initElasticSearch(env)
 	if err != nil {
@@ -177,6 +181,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 			return nil
 		}
 	}
+}
+
+func initSecret(envFileName string) (*EnvVar, error) {
+	secretStore := internalsecret.NewSecretFetchStore(envFileName)
+	return initEnvVar(secretStore), nil
 }
 
 func initElasticSearch(env *EnvVar) (*esv8.Client, error) {
