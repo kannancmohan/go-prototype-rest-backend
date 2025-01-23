@@ -3,7 +3,7 @@ package testutils
 import (
 	"context"
 	"fmt"
-	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -11,75 +11,23 @@ import (
 	redistc "github.com/testcontainers/testcontainers-go/modules/redis"
 )
 
-var (
-	redisContainerInstances sync.Map // Map to store containers by schema name
-	redisMutex              sync.Mutex
-)
+type testRedisContainer struct {
+}
 
-type RedisContainerInfo struct {
-	Container   testcontainers.Container
-	RedisClient *redis.Client
+func NewTestRedisContainer() *testRedisContainer {
+	return &testRedisContainer{}
 }
 
 type RedisCleanupFunc func(ctx context.Context) error
 
-func StartRedisTestContainer(containerName string) (*redis.Client, RedisCleanupFunc, error) {
+func (p *testRedisContainer) CreateRedisTestContainer(containerName string) (*redistc.RedisContainer, RedisCleanupFunc, error) {
 	if containerName == "" {
 		containerName = fmt.Sprintf("redis-instance-%s", uuid.New().String())
 	}
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
-	redisMutex.Lock()
-	defer redisMutex.Unlock()
-
-	ctx := context.Background()
-
-	// Check if a container for this containerName already exists
-	if instance, ok := redisContainerInstances.Load(containerName); ok {
-		info := instance.(*RedisContainerInfo)
-		return info.RedisClient, func(ctx context.Context) error { return nil }, nil // No-op cleanup for reused container
-	}
-
-	container, err := createRedisTestContainer(ctx, containerName)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to start redis container: %w", err)
-	}
-	connStr, err := getRedisConnectionString(ctx, container)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get redis connection string: %w", err)
-	}
-	rClient, err := createRedisInstance(ctx, connStr)
-	if err != nil {
-		container.Terminate(ctx) // Ensure cleanup
-		return nil, nil, fmt.Errorf("failed to initialize redis: %w", err)
-	}
-	redisContainerInstances.Store(containerName, &RedisContainerInfo{
-		Container:   container,
-		RedisClient: rClient,
-	})
-
-	cleanupFunc := func(ctx context.Context) error {
-		redisMutex.Lock()
-		defer redisMutex.Unlock()
-
-		if instance, ok := redisContainerInstances.Load(containerName); ok {
-			redisContainerInstances.Delete(containerName)
-
-			info := instance.(*RedisContainerInfo)
-			info.RedisClient.Close() // Close the connection
-
-			err := info.Container.Terminate(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to terminate redis container: %w", err)
-			}
-		}
-		return nil
-	}
-
-	return rClient, cleanupFunc, nil
-}
-
-func createRedisTestContainer(ctx context.Context, containerName string) (*redistc.RedisContainer, error) {
-	container, err := redistc.Run(ctx,
+	ctr, err := redistc.Run(timeoutCtx,
 		"redis:7-alpine",
 		//redistc.WithSnapshotting(10, 1),
 		redistc.WithLogLevel(redistc.LogLevelVerbose),
@@ -90,20 +38,30 @@ func createRedisTestContainer(ctx context.Context, containerName string) (*redis
 		}),
 	)
 	if err != nil {
-		return nil, err
+		return ctr, func(ctx context.Context) error { return nil }, err
 	}
-	return container, nil
+	cleanupFunc := func(ctx context.Context) error {
+		err := ctr.Terminate(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return ctr, cleanupFunc, nil
 }
 
-func getRedisConnectionString(ctx context.Context, container *redistc.RedisContainer) (string, error) {
-	uri, err := container.ConnectionString(ctx)
+func (p *testRedisContainer) GetRedisConnectionString(container *redistc.RedisContainer) (string, error) {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	uri, err := container.ConnectionString(timeoutCtx)
 	if err != nil {
 		return "", err
 	}
 	return uri, nil
 }
 
-func createRedisInstance(ctx context.Context, connStr string) (*redis.Client, error) {
+func (p *testRedisContainer) CreateRedisInstance(connStr string) (*redis.Client, error) {
 	options, err := redis.ParseURL(connStr)
 	if err != nil {
 		return nil, err
@@ -111,7 +69,10 @@ func createRedisInstance(ctx context.Context, connStr string) (*redis.Client, er
 
 	client := redis.NewClient(options)
 
-	if err := client.Ping(ctx).Err(); err != nil {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := client.Ping(timeoutCtx).Err(); err != nil {
 		return nil, err
 	}
 	return client, nil

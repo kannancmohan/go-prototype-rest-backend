@@ -25,18 +25,34 @@ func TestMain(m *testing.M) {
 	var err error
 	var cleanupFunc testutils.RedisCleanupFunc
 
-	testRedisClient, cleanupFunc, err = testutils.StartRedisTestContainer("")
+	pgTest := testutils.NewTestRedisContainer()
+	container, cleanupFunc, err := pgTest.CreateRedisTestContainer("")
 	if err != nil {
 		log.Fatalf("Failed to start TestContainer: %v", err)
 	}
 
+	connStr, err := pgTest.GetRedisConnectionString(container)
+	if err != nil {
+		log.Fatalf("Failed to get connection  string: %v", err)
+	}
+
+	testRedisClient, err = pgTest.CreateRedisInstance(connStr)
+	if err != nil {
+		log.Fatalf("Failed to init redis client: %v", err)
+	}
+
 	code := m.Run()
 
-	if cleanupFunc != nil {
-		if err := cleanupFunc(context.Background()); err != nil {
-			log.Printf("Failed to clean up TestContainer: %v", err)
+	defer func() {
+		if testRedisClient != nil {
+			testRedisClient.Close()
 		}
-	}
+		if cleanupFunc != nil {
+			if err := cleanupFunc(context.Background()); err != nil {
+				log.Printf("Failed to clean up TestContainer: %v", err)
+			}
+		}
+	}()
 
 	os.Exit(code)
 }
