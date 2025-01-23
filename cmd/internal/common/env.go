@@ -28,7 +28,7 @@ func (e *ErrorEnvVarNotFound) Error() string {
 }
 
 type SecretManager interface {
-	GetSecret(key string) (string, error)
+	GetSecret(key string) (string, bool)
 }
 
 // EnvFetcher fetches environment variables considering `_SECURE` suffix.
@@ -37,29 +37,25 @@ type envVarFetcher struct {
 }
 
 func NewEnvVarFetcher(envFile string, secretManager SecretManager) *envVarFetcher {
-	err := godotenv.Load(envFile) // loaf envvar from file (eg .env)
+	err := godotenv.Load(envFile) // load envvar from file (eg .env)
 	if err != nil {
 		slog.Info("No envvar file found..")
 	}
 	return &envVarFetcher{secretManager: secretManager}
 }
 
-func (e *envVarFetcher) GetEnv(key string) (string, error) {
+func (e *envVarFetcher) GetEnv(key string) (string, bool) {
 	// If the key ends with `_SECURE` and a secret manager is provided, fetch from it.
 	if strings.HasSuffix(key, "_SECURE") && e.secretManager != nil {
 		return e.secretManager.GetSecret(key)
 	}
 	// Fetch from environment variables.
-	value, exists := os.LookupEnv(key)
-	if !exists {
-		return "", &ErrorEnvVarNotFound{Key: key}
-	}
-	return value, nil
+	return os.LookupEnv(key)
 }
 
 func (e *envVarFetcher) GetEnvString(key, fallback string) string {
-	v, err := e.GetEnv(key)
-	if err == nil {
+	v, exits := e.GetEnv(key)
+	if exits == true {
 		return v
 	}
 	return fallback
@@ -73,35 +69,3 @@ func (e *envVarFetcher) GetEnvDuration(key, fallback string) time.Duration {
 	}
 	return duration
 }
-
-// func getString(key, fallback string) string {
-// 	v, ok := os.LookupEnv(key)
-// 	if !ok {
-// 		return fallback
-// 	}
-// 	return v
-// }
-
-// func getInt(key string, fallback int) int {
-// 	v, ok := os.LookupEnv(key)
-// 	if !ok {
-// 		return fallback
-// 	}
-// 	intVal, err := strconv.Atoi(v)
-// 	if err != nil {
-// 		return fallback
-// 	}
-// 	return intVal
-// }
-
-// func getBool(key string, fallback bool) bool {
-// 	v, ok := os.LookupEnv(key)
-// 	if !ok {
-// 		return fallback
-// 	}
-// 	boolVal, err := strconv.ParseBool(v)
-// 	if err != nil {
-// 		return fallback
-// 	}
-// 	return boolVal
-// }
