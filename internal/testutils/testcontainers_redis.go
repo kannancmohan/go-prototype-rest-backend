@@ -18,9 +18,7 @@ func NewTestRedisContainer() *testRedisContainer {
 	return &testRedisContainer{}
 }
 
-type RedisCleanupFunc func(ctx context.Context) error
-
-func (p *testRedisContainer) CreateRedisTestContainer(containerName string) (*redistc.RedisContainer, RedisCleanupFunc, error) {
+func (p *testRedisContainer) CreateRedisTestContainer(containerName string) (*redistc.RedisContainer, func(ctx context.Context) error, error) {
 	if containerName == "" {
 		containerName = fmt.Sprintf("redis-instance-%s", uuid.New().String())
 	}

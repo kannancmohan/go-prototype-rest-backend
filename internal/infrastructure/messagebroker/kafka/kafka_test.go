@@ -26,11 +26,14 @@ var (
 
 func TestMain(m *testing.M) {
 	var err error
-	var cleanupFunc testutils.KafkaCleanupFunc
-
-	broker, cleanupFunc, err := testutils.StartKafkaTestContainer(kafkaClusterId)
+	pgTest := testutils.NewTestKafkaContainer(kafkaClusterId)
+	container, cleanupFunc, err := pgTest.CreateKafkaTestContainer()
 	if err != nil {
-		log.Fatalf("Failed to start TestContainer: %v", err)
+		log.Fatalf("Failed to start kafka TestContainer: %v", err)
+	}
+	broker, err := pgTest.GetKafkaBrokerAddress(container)
+	if err != nil {
+		log.Fatalf("Failed to get kafka broker: %v", err)
 	}
 
 	producer, err = testutils.CreateKafkaProducer(broker)

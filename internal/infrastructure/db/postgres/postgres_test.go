@@ -20,8 +20,6 @@ var testDB *sql.DB
 
 func TestMain(m *testing.M) {
 	var err error
-	var cleanupFunc testutils.DBCleanupFunc
-
 	pgTest := testutils.NewTestPostgresContainer("testpg", "test", "test")
 	container, cleanupFunc, err := pgTest.CreatePostgresTestContainer()
 	if err != nil {
@@ -39,16 +37,14 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 
-	defer func() {
-		if testDB != nil {
-			testDB.Close()
+	if testDB != nil {
+		testDB.Close()
+	}
+	if cleanupFunc != nil {
+		if err := cleanupFunc(context.Background()); err != nil {
+			log.Printf("Failed to clean up TestContainer: %v", err)
 		}
-		if cleanupFunc != nil {
-			if err := cleanupFunc(context.Background()); err != nil {
-				log.Printf("Failed to clean up TestContainer: %v", err)
-			}
-		}
-	}()
+	}
 
 	os.Exit(code)
 }

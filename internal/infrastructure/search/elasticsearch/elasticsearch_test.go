@@ -21,8 +21,6 @@ var testESClient *esv8.Client
 
 func TestMain(m *testing.M) {
 	var err error
-	var cleanupFunc testutils.ESCleanupFunc
-
 	pgTest := testutils.NewTestElasticsearchContainer()
 	container, cleanupFunc, err := pgTest.CreateElasticsearchTestContainer("")
 	if err != nil {

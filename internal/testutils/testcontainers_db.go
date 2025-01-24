@@ -76,9 +76,7 @@ func NewTestPostgresContainer(schemaName, dbUserName, dbPassword string) *testPo
 	return &testPostgresContainer{schemaName: schemaName, dbUserName: dbUserName, dbPassword: dbPassword}
 }
 
-type DBCleanupFunc func(ctx context.Context) error
-
-func (p *testPostgresContainer) CreatePostgresTestContainer() (*pgtc.PostgresContainer, DBCleanupFunc, error) {
+func (p *testPostgresContainer) CreatePostgresTestContainer() (*pgtc.PostgresContainer, func(ctx context.Context) error, error) {
 
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

@@ -20,9 +20,7 @@ func NewTestElasticsearchContainer() *testElasticsearchContainer {
 	return &testElasticsearchContainer{}
 }
 
-type ESCleanupFunc func(ctx context.Context) error
-
-func (e *testElasticsearchContainer) CreateElasticsearchTestContainer(containerName string) (*elasticsearch.ElasticsearchContainer, ESCleanupFunc, error) {
+func (e *testElasticsearchContainer) CreateElasticsearchTestContainer(containerName string) (*elasticsearch.ElasticsearchContainer, func(ctx context.Context) error, error) {
 	if containerName == "" {
 		containerName = fmt.Sprintf("es-instance-%s", uuid.New().String())
 	}

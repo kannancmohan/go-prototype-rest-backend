@@ -23,8 +23,6 @@ var testRedisClient *redis.Client
 
 func TestMain(m *testing.M) {
 	var err error
-	var cleanupFunc testutils.RedisCleanupFunc
-
 	pgTest := testutils.NewTestRedisContainer()
 	container, cleanupFunc, err := pgTest.CreateRedisTestContainer("")
 	if err != nil {
@@ -43,16 +41,14 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 
-	defer func() {
-		if testRedisClient != nil {
-			testRedisClient.Close()
+	if testRedisClient != nil {
+		testRedisClient.Close()
+	}
+	if cleanupFunc != nil {
+		if err := cleanupFunc(context.Background()); err != nil {
+			log.Printf("Failed to clean up TestContainer: %v", err)
 		}
-		if cleanupFunc != nil {
-			if err := cleanupFunc(context.Background()); err != nil {
-				log.Printf("Failed to clean up TestContainer: %v", err)
-			}
-		}
-	}()
+	}
 
 	os.Exit(code)
 }
