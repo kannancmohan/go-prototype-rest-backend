@@ -3,9 +3,7 @@ package testutils
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -82,68 +80,16 @@ func VerifyKafkaMessage[V any](t *testing.T, consumer *kafka.Consumer, expectedM
 
 const kafkaExportedPort string = "9092"
 
-var (
-	kafkaContainerInstances sync.Map // Map to store containers by schema name
-	kafkaMutex              sync.Mutex
-)
-
-type KafkaContainerInfo struct {
-	Container testcontainers.Container
-	Broker    string
+type testKafkaContainer struct {
+	clusterID string
 }
 
-type KafkaCleanupFunc func(ctx context.Context) error
-
-func StartKafkaTestContainer(clusterID string) (string, KafkaCleanupFunc, error) {
-
-	kafkaMutex.Lock()
-	defer kafkaMutex.Unlock()
-
-	ctx := context.Background()
-
-	if instance, ok := kafkaContainerInstances.Load(clusterID); ok {
-		info := instance.(*KafkaContainerInfo)
-		return info.Broker, func(ctx context.Context) error { return nil }, nil // No-op cleanup for reused container
-	}
-	container, err := createKafkaTestContainer(ctx, clusterID, kafkaExportedPort)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to start kafka container: %w", err)
-	}
-
-	broker, err := getKafkaBrokerAddress(ctx, container, kafkaExportedPort)
-	if err != nil {
-		container.Terminate(ctx) // Ensure cleanup
-		return "", nil, fmt.Errorf("failed to initialize kafka broker: %w", err)
-	}
-
-	kafkaContainerInstances.Store(clusterID, &KafkaContainerInfo{
-		Container: container,
-		Broker:    broker,
-	})
-
-	cleanupFunc := func(ctx context.Context) error {
-		kafkaMutex.Lock()
-		defer kafkaMutex.Unlock()
-
-		if instance, ok := kafkaContainerInstances.Load(clusterID); ok {
-			kafkaContainerInstances.Delete(clusterID)
-
-			info := instance.(*KafkaContainerInfo)
-			if info.Container != nil {
-				if err := info.Container.Terminate(ctx); err != nil {
-					return fmt.Errorf("failed to terminate Kafka container: %w", err)
-				}
-			}
-		}
-		return nil
-	}
-
-	return broker, cleanupFunc, nil
-
+func NewTestKafkaContainer(clusterID string) *testKafkaContainer {
+	return &testKafkaContainer{clusterID: clusterID}
 }
 
-func createKafkaTestContainer(ctx context.Context, clusterID, exposedPort string) (testcontainers.Container, error) {
-	tcExposedPort := exposedPort + "/tcp"
+func (e *testKafkaContainer) CreateKafkaTestContainer() (testcontainers.Container, func(ctx context.Context) error, error) {
+	tcExposedPort := kafkaExportedPort + "/tcp"
 
 	kafkaReq := testcontainers.ContainerRequest{
 		Image:        "confluentinc/confluent-local:7.5.0",
@@ -154,7 +100,7 @@ func createKafkaTestContainer(ctx context.Context, clusterID, exposedPort string
 			// "KAFKA_LISTENERS":                     "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093",
 			// "KAFKA_ADVERTISED_LISTENERS":          "PLAINTEXT://192.168.0.30:9092",
 			// "KAFKA_CONTROLLER_LISTENER_NAMES":     "CONTROLLER",
-			"KAFKA_CLUSTER_ID":                       clusterID,
+			"KAFKA_CLUSTER_ID":                       e.clusterID,
 			"KAFKA_AUTO_CREATE_TOPICS_ENABLE":        "true",
 			"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "1",
 			"KAFKA_LOG_RETENTION_HOURS":              "1", // Optional: Shorten log retention for testing
@@ -164,25 +110,39 @@ func createKafkaTestContainer(ctx context.Context, clusterID, exposedPort string
 			WithStartupTimeout(1 * time.Minute),
 	}
 
-	kafkaContainer, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	ctr, err := testcontainers.GenericContainer(timeoutCtx, testcontainers.GenericContainerRequest{
 		ContainerRequest: kafkaReq,
 		Started:          true,
 	})
 
 	if err != nil {
-		return nil, err
+		return ctr, func(ctx context.Context) error { return nil }, err
 	}
 
-	return kafkaContainer, nil
+	cleanupFunc := func(ctx context.Context) error {
+		err := ctr.Terminate(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return ctr, cleanupFunc, nil
 }
 
-func getKafkaBrokerAddress(ctx context.Context, container testcontainers.Container, exposedPort string) (string, error) {
-	_, err := container.MappedPort(ctx, nat.Port(exposedPort))
+func (e *testKafkaContainer) GetKafkaBrokerAddress(container testcontainers.Container) (string, error) {
+
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err := container.MappedPort(timeoutCtx, nat.Port(kafkaExportedPort))
 	if err != nil {
 		return "", err
 	}
 
-	broker, err := container.PortEndpoint(ctx, nat.Port(exposedPort+"/tcp"), "")
+	broker, err := container.PortEndpoint(timeoutCtx, nat.Port(kafkaExportedPort+"/tcp"), "")
 	if err != nil {
 		return "", err
 	}

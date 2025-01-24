@@ -20,11 +20,15 @@ var testDB *sql.DB
 
 func TestMain(m *testing.M) {
 	var err error
-	var cleanupFunc testutils.DBCleanupFunc
-
-	testDB, cleanupFunc, err = testutils.StartPostgresDBTestContainer("testpg")
+	pgTest := testutils.NewTestPostgresContainer("testpg", "test", "test")
+	container, cleanupFunc, err := pgTest.CreatePostgresTestContainer()
 	if err != nil {
 		log.Fatalf("Failed to start TestContainer: %v", err)
+	}
+
+	testDB, err = pgTest.CreatePostgresDBInstance(container)
+	if err != nil {
+		log.Fatalf("Failed to init postgres: %v", err)
 	}
 
 	if err := testutils.ApplyDBMigrations(testDB); err != nil {
@@ -33,6 +37,9 @@ func TestMain(m *testing.M) {
 
 	code := m.Run()
 
+	if testDB != nil {
+		testDB.Close()
+	}
 	if cleanupFunc != nil {
 		if err := cleanupFunc(context.Background()); err != nil {
 			log.Printf("Failed to clean up TestContainer: %v", err)
@@ -71,7 +78,7 @@ func TestRoleStore_GetByName(t *testing.T) {
 			role, err := rStore.GetByName(ctx, tc.roleName)
 			if tc.expErr == nil {
 				if err != nil || role == nil || role.Name != tc.roleName {
-					t.Errorf("Role not found. Expected roleName:%s, received %s instead.", tc.roleName, role.Name)
+					t.Errorf("expected role name '%s', but got '%s' (error: %v)", tc.roleName, role.Name, err)
 				}
 			} else {
 				receivedErr, receivedErrOk := err.(*common.Error)

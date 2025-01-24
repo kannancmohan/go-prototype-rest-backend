@@ -25,12 +25,17 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/db/postgres"
 	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/messagebroker/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/search/elasticsearch"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/envvarsecret"
 	"github.com/redis/go-redis/v9"
 )
 
 func main() {
-	envName := app_common.GetEnvNameFromCommandLine()
-	env := initApiEnvVar(envName)
+
+	env, err := initSecret(app_common.GetEnvNameFromCommandLine())
+	if err != nil {
+		log.Fatalf("Error init secret: %s", err)
+	}
+
 	initLogger(env) // error ignored on purpose
 
 	db, err := initDB(env)
@@ -137,6 +142,11 @@ func closeResources(db *sql.DB, redis *redis.Client) {
 		redis.Close()
 		slog.Info("Redis client connection closed")
 	}
+}
+
+func initSecret(envFileName string) (*EnvVar, error) {
+	secretStore := envvarsecret.NewSecretFetchStore(envFileName)
+	return initEnvVar(secretStore), nil
 }
 
 func initLogger(env *EnvVar) error {
