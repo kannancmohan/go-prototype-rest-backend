@@ -162,7 +162,7 @@ func initLogger(env *EnvVar) error {
 
 func initDB(env *EnvVar) (*sql.DB, error) {
 	dbCfg := app_common.DBConfig{
-		Addr:         fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.ApiDBName, env.DBSslMode),
+		Addr:         fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.DBPort, env.ApiDBName, env.DBSslMode),
 		MaxOpenConns: env.ApiDBMaxOpenConns,
 		MaxIdleConns: env.ApiDBMaxIdleConns,
 		MaxIdleTime:  env.ApiDBMaxIdleTime,
