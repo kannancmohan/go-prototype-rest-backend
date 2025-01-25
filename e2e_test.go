@@ -5,58 +5,72 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strconv"
+	"sync"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/docker/go-connections/nat"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/sync/errgroup"
 )
 
 func TestMain(m *testing.M) {
 
-	setupCtx, setupCancel := context.WithCancel(context.Background())
-	defer setupCancel()
-
 	var cleanupFuncs = make(map[string]func(context.Context) error) //map to hold cleanup functions of setup
+	var mu sync.Mutex                                               // Protects cleanupFuncs
+
+	// Catch interrupt signals
+    sigChan := make(chan os.Signal, 1)
+    signal.Notify(sigChan, syscall.SIGINT,os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+    go func() {
+        <-sigChan
+        log.Println("Received interrupt signal. Running cleanup...")
+        runCleanup(cleanupFuncs)
+        os.Exit(1)
+    }()
+
+	g, ctx := errgroup.WithContext(context.Background()) // Create an errgroup to manage group of goroutines that can fail and cancel each other
 
 	// Helper to register setup and cleanup
 	setup := func(name string, setupFunc func() (func(context.Context) error, error)) {
-
-		if setupCtx.Err() != nil { // Skip setup if the setupCtx is already canceled
-			log.Printf("Skipping setup for %s due to previous failure.", name)
-			return
-		}
-
-		cleanupFunc, err := setupFunc() // invoke the actual func
-		if cleanupFunc != nil {
-			cleanupFuncs[name] = cleanupFunc
-		}
-		if err != nil {
-			log.Printf("Failed to start %s testcontainer: %v", name, err)
-			setupCancel() // manually call cancel setupCtx so as to stop executing further
-			return
-		}
+		g.Go(func() error {
+			if ctx.Err() != nil { // Check if the context has been canceled (e.g., due to a failure in another setup)
+				log.Printf("Skipping setup for %s due to cancellation.", name)
+				return nil
+			}
+			cleanupFunc, err := setupFunc() // Run the setup function
+			if cleanupFunc != nil {         // Register the cleanup function if not nil
+				mu.Lock()
+				cleanupFuncs[name] = cleanupFunc
+				mu.Unlock()
+			}
+			if err != nil {
+				log.Printf("Failed to start %s testcontainer: %v", name, err)
+				return err // Return error to cancel the group
+			}
+			log.Printf("Successfully started %s testconatiner", name)
+			return nil
+		})
 	}
 
-	//TODO add goroutine to run asynchronously
 	setup("postgres", setupTestPostgres)
 	setup("redis", setupTestRedis)
 	setup("elasticsearch", setupTestElasticsearch)
 	setup("kafka", setupTestKafka)
 
-	if setupCtx.Err() != nil { // true if setupCancel was called during setup
+	if err := g.Wait(); err != nil { // Wait for all setup goroutines to complete
 		log.Println("Setup failed. Skipping tests.")
 		runCleanup(cleanupFuncs)
-		os.Exit(1) // Exit with a failure code
+		os.Exit(1)
 	}
 
 	code := m.Run()
 	runCleanup(cleanupFuncs)
-
 	os.Exit(code)
-
 }
 
 func TestRoleStore_XXX(t *testing.T) {
@@ -169,10 +183,28 @@ func setupTestKafka() (func(ctx context.Context) error, error) {
 
 func runCleanup(cleanupFuncs map[string]func(context.Context) error) {
 	ctx := context.Background()
-	for key, cleanup := range cleanupFuncs {
-		log.Printf("Cleanup triggered for: %s", key)
-		if err := cleanup(ctx); err != nil {
-			log.Printf("Cleanup error for %s: %v", key, err)
-		}
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var cleanupErrors []error
+
+	for name, cleanup := range cleanupFuncs {
+		wg.Add(1)
+		go func(name string, cleanup func(context.Context) error) {
+			defer wg.Done()
+			if err := cleanup(ctx); err != nil {
+				mu.Lock()
+				cleanupErrors = append(cleanupErrors, err)
+				log.Printf("Failed to cleanup %s: %v", name, err)
+				mu.Unlock()
+			} else {
+				log.Printf("Successfully cleaned up %s", name)
+			}
+		}(name, cleanup)
+	}
+
+	wg.Wait()
+
+	if len(cleanupErrors) > 0 {
+		log.Println("Cleanup completed with errors.")
 	}
 }
