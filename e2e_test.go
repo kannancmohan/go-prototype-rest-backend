@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
 	"testing"
 	"time"
@@ -22,8 +23,8 @@ func TestMain(m *testing.M) {
 
 	// Helper to register setup and cleanup
 	setup := func(name string, setupFunc func() (func(context.Context) error, error)) {
-		
-		if setupCtx.Err() != nil {// Skip setup if the setupCtx is already canceled
+
+		if setupCtx.Err() != nil { // Skip setup if the setupCtx is already canceled
 			log.Printf("Skipping setup for %s due to previous failure.", name)
 			return
 		}
@@ -45,7 +46,7 @@ func TestMain(m *testing.M) {
 	setup("elasticsearch", setupTestElasticsearch)
 	setup("kafka", setupTestKafka)
 
-	if setupCtx.Err() != nil { // true if setupCancel was called
+	if setupCtx.Err() != nil { // true if setupCancel was called during setup
 		log.Println("Setup failed. Skipping tests.")
 		runCleanup(cleanupFuncs)
 		os.Exit(1) // Exit with a failure code
@@ -59,14 +60,20 @@ func TestMain(m *testing.M) {
 }
 
 func TestRoleStore_XXX(t *testing.T) {
-	// apiCmd := exec.Command("go", "run", "cmd/api/*.go")
+	port, _ := testutils.GetFreePort()
+	os.Setenv("API_PORT", port)
+	apiCmd := exec.Command("go", "run", "./cmd/api/")
+	if out, err := apiCmd.CombinedOutput(); err != nil {
+		t.Fatalf("Failed to start API service: %v\n%s", err, string(out))
+	}
+
 	// apiCmd.Stdout = os.Stdout
 	// apiCmd.Stderr = os.Stderr
 	// apiCmd.Env = os.Environ() // Use environment variables set in TestMain
 	// if err := apiCmd.Start(); err != nil {
 	// 	t.Fatalf("Failed to start API service: %v", err)
 	// }
-	// defer apiCmd.Process.Kill()
+	defer apiCmd.Process.Kill()
 }
 
 func setupTestPostgres() (func(ctx context.Context) error, error) {
