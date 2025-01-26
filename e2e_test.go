@@ -24,14 +24,14 @@ func TestMain(m *testing.M) {
 	var mu sync.Mutex                                               // Protects cleanupFuncs
 
 	// Catch interrupt signals
-    sigChan := make(chan os.Signal, 1)
-    signal.Notify(sigChan, syscall.SIGINT,os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-    go func() {
-        <-sigChan
-        log.Println("Received interrupt signal. Running cleanup...")
-        runCleanup(cleanupFuncs)
-        os.Exit(1)
-    }()
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		<-sigChan
+		log.Println("Received interrupt signal. Running cleanup...")
+		runCleanup(cleanupFuncs)
+		os.Exit(1)
+	}()
 
 	g, ctx := errgroup.WithContext(context.Background()) // Create an errgroup to manage group of goroutines that can fail and cancel each other
 
@@ -68,26 +68,42 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	code := m.Run()
-	runCleanup(cleanupFuncs)
-	os.Exit(code)
+	// Run tests with a timeout
+	resultChan := make(chan int)
+	go func() {
+		resultChan <- m.Run()
+	}()
+
+	timeout := 30 * time.Second // Set a timeout so as to do proper cleanup in case of test timeout
+	select {
+	case code := <-resultChan: // Tests completed successfully
+		runCleanup(cleanupFuncs)
+		os.Exit(code)
+	case <-time.After(timeout): // Test timed out
+		log.Printf("Test timed out after %v. Running cleanup...\n", timeout)
+		runCleanup(cleanupFuncs)
+		os.Exit(1)
+	}
 }
 
 func TestRoleStore_XXX(t *testing.T) {
 	port, _ := testutils.GetFreePort()
 	os.Setenv("API_PORT", port)
 	apiCmd := exec.Command("go", "run", "./cmd/api/")
-	if out, err := apiCmd.CombinedOutput(); err != nil {
-		t.Fatalf("Failed to start API service: %v\n%s", err, string(out))
+	if err := apiCmd.Start(); err != nil {
+		t.Fatalf("Failed to start API service: %v", err)
 	}
 
-	// apiCmd.Stdout = os.Stdout
-	// apiCmd.Stderr = os.Stderr
-	// apiCmd.Env = os.Environ() // Use environment variables set in TestMain
-	// if err := apiCmd.Start(); err != nil {
-	// 	t.Fatalf("Failed to start API service: %v", err)
-	// }
-	defer apiCmd.Process.Kill()
+	defer func() {
+		if err := apiCmd.Process.Kill(); err != nil {
+			t.Logf("Failed to kill API service process: %v", err)
+		}
+	}()
+
+	if err := testutils.WaitForPort(port, 10*time.Second); err != nil {
+		t.Fatalf("Server did not start: %v", err)
+	}
+
 }
 
 func setupTestPostgres() (func(ctx context.Context) error, error) {
