@@ -23,25 +23,18 @@ func TestMain(m *testing.M) {
 	var cleanupFuncs = make(map[string]func(context.Context) error) //map to hold cleanup functions of setup
 	var mu sync.Mutex                                               // Protects cleanupFuncs
 
-	// Catch interrupt signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-	go func() {
-		<-sigChan
-		log.Println("Received interrupt signal. Running cleanup...")
-		runCleanup(cleanupFuncs)
-		os.Exit(1)
-	}()
+	// do cleanup in interrupt signals
+    go handleInterruptSignals(cleanupFuncs)
 
-	g, ctx := errgroup.WithContext(context.Background()) // Create an errgroup to manage group of goroutines that can fail and cancel each other
+	g, _ := errgroup.WithContext(context.Background()) // Create an errgroup to manage group of goroutines that can fail and cancel each other
 
 	// Helper to register setup and cleanup
 	setup := func(name string, setupFunc func() (func(context.Context) error, error)) {
 		g.Go(func() error {
-			if ctx.Err() != nil { // Check if the context has been canceled (e.g., due to a failure in another setup)
-				log.Printf("Skipping setup for %s due to cancellation.", name)
-				return nil
-			}
+			// if ctx.Err() != nil { // Check if the context has been canceled (e.g., due to a failure in another setup)
+			// 	log.Printf("Skipping setup for %s due to cancellation.", name)
+			// 	return nil
+			// }
 			cleanupFunc, err := setupFunc() // Run the setup function
 			if cleanupFunc != nil {         // Register the cleanup function if not nil
 				mu.Lock()
@@ -68,22 +61,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Run tests with a timeout
-	resultChan := make(chan int)
-	go func() {
-		resultChan <- m.Run()
-	}()
-
-	timeout := 30 * time.Second // Set a timeout so as to do proper cleanup in case of test timeout
-	select {
-	case code := <-resultChan: // Tests completed successfully
-		runCleanup(cleanupFuncs)
-		os.Exit(code)
-	case <-time.After(timeout): // Test timed out
-		log.Printf("Test timed out after %v. Running cleanup...\n", timeout)
-		runCleanup(cleanupFuncs)
-		os.Exit(1)
-	}
+    code := runTestsWithTimeout(m, cleanupFuncs)
+    os.Exit(code)
 }
 
 func TestRoleStore_XXX(t *testing.T) {
@@ -223,4 +202,31 @@ func runCleanup(cleanupFuncs map[string]func(context.Context) error) {
 	if len(cleanupErrors) > 0 {
 		log.Println("Cleanup completed with errors.")
 	}
+}
+
+func handleInterruptSignals(cleanupFuncs map[string]func(context.Context) error) {
+    sigChan := make(chan os.Signal, 1)
+    signal.Notify(sigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+    <-sigChan
+    log.Println("Received interrupt signal. Running cleanup...")
+    runCleanup(cleanupFuncs)
+    os.Exit(1)
+}
+
+func runTestsWithTimeout(m *testing.M, cleanupFuncs map[string]func(context.Context) error) int {
+    resultChan := make(chan int)
+    go func() {
+        resultChan <- m.Run()
+    }()
+
+    timeout := 30 * time.Second // Set a timeout for the tests
+    select {
+    case code := <-resultChan: // Tests completed successfully
+        runCleanup(cleanupFuncs)
+        return code
+    case <-time.After(timeout): // Test timed out
+        log.Printf("Test timed out after %v. Running cleanup...\n", timeout)
+        runCleanup(cleanupFuncs)
+        return 1
+    }
 }
