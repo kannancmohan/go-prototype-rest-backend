@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -18,20 +17,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type CleanupFunc func(context.Context) error
-
 func TestMain(m *testing.M) {
-	var cleanupFuncs = make(map[string]CleanupFunc) //map to hold cleanup functions of setup
-	var mu sync.Mutex                               // Protects cleanupFuncs
-
-	registerCleanup := func(name string, cleanup CleanupFunc) {
-		mu.Lock()
-		defer mu.Unlock()
-		cleanupFuncs[name] = cleanup
-	}
+	cleanupRegistry := NewCleanupRegistry()
 
 	// do cleanup in interrupt signals
-	go handleInterruptSignals(cleanupFuncs)
+	go handleInterruptSignals(cleanupRegistry)
 
 	var wg sync.WaitGroup
 	errChan := make(chan error, 4) // Buffer size equals the number of services
@@ -43,7 +33,7 @@ func TestMain(m *testing.M) {
 			defer wg.Done()
 			cleanup, err := setup()
 			if cleanup != nil {
-				registerCleanup(name, cleanup)
+				cleanupRegistry.Register(name, cleanup)
 			}
 			if err != nil {
 				log.Printf("Failed to start %s testcontainer: %v", name, err)
@@ -65,13 +55,13 @@ func TestMain(m *testing.M) {
 	select {
 	case err := <-errChan:
 		log.Printf("setup failed with error:%v", err)
-		runCleanup(cleanupFuncs)
+		cleanupRegistry.RunCleanup(context.Background())
 		os.Exit(1)
 	default:
 		//runCleanup(cleanupFuncs)
 	}
 
-	code := runTestsWithTimeout(m, cleanupFuncs)
+	code := runTestsWithTimeout(m, cleanupRegistry)
 	os.Exit(code)
 }
 
@@ -170,32 +160,77 @@ func setupTestElasticsearch() (func(ctx context.Context) error, error) {
 }
 
 func setupTestKafka() (func(ctx context.Context) error, error) {
-	return nil, fmt.Errorf("test error")
-	// instance := testutils.NewTestKafkaContainer("e2e-test-kafka")
-	// container, cleanupFunc, err := instance.CreateKafkaTestContainer()
-	// if err != nil {
-	// 	return cleanupFunc, err
-	// }
+	//return nil, fmt.Errorf("test error")
+	instance := testutils.NewTestKafkaContainer("e2e-test-kafka")
+	container, cleanupFunc, err := instance.CreateKafkaTestContainer()
+	if err != nil {
+		return cleanupFunc, err
+	}
 
-	// addr, err := instance.GetKafkaBrokerAddress(container)
-	// if err != nil {
-	// 	return cleanupFunc, err
-	// }
+	addr, err := instance.GetKafkaBrokerAddress(container)
+	if err != nil {
+		return cleanupFunc, err
+	}
 
-	// os.Setenv("KAFKA_HOST", addr)
-	// os.Setenv("API_KAFKA_TOPIC", "e2e_test_posts")
-	// return cleanupFunc, nil
+	os.Setenv("KAFKA_HOST", addr)
+	os.Setenv("API_KAFKA_TOPIC", "e2e_test_posts")
+	return cleanupFunc, nil
 }
 
-func runCleanup(cleanupFuncs map[string]CleanupFunc) {
-	ctx := context.Background()
+func handleInterruptSignals(cleanupRegistry *CleanupRegistry) {
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	<-sigChan
+	log.Println("Received interrupt signal. Running cleanup...")
+	cleanupRegistry.RunCleanup(context.Background())
+	os.Exit(1)
+}
+
+func runTestsWithTimeout(m *testing.M, cleanupRegistry *CleanupRegistry) int {
+	resultChan := make(chan int)
+	go func() {
+		resultChan <- m.Run()
+	}()
+
+	timeout := 30 * time.Second // Set a timeout for the tests
+	select {
+	case code := <-resultChan: // Tests completed successfully
+		cleanupRegistry.RunCleanup(context.Background())
+		return code
+	case <-time.After(timeout): // Test timed out
+		log.Printf("Test timed out after %v. Running cleanup...\n", timeout)
+		cleanupRegistry.RunCleanup(context.Background())
+		return 1
+	}
+}
+
+type CleanupFunc func(context.Context) error
+
+type CleanupRegistry struct {
+	mu    sync.Mutex
+	funcs map[string]CleanupFunc
+}
+
+func NewCleanupRegistry() *CleanupRegistry {
+	return &CleanupRegistry{
+		funcs: make(map[string]CleanupFunc),
+	}
+}
+
+func (r *CleanupRegistry) Register(name string, cleanup CleanupFunc) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.funcs[name] = cleanup
+}
+
+func (r *CleanupRegistry) RunCleanup(ctx context.Context) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var cleanupErrors []error
 
-	for name, cleanup := range cleanupFuncs {
+	for name, cleanup := range r.funcs {
 		wg.Add(1)
-		go func(name string, cleanup func(context.Context) error) {
+		go func(name string, cleanup CleanupFunc) {
 			defer wg.Done()
 			if err := cleanup(ctx); err != nil {
 				mu.Lock()
@@ -212,32 +247,5 @@ func runCleanup(cleanupFuncs map[string]CleanupFunc) {
 
 	if len(cleanupErrors) > 0 {
 		log.Println("Cleanup completed with errors.")
-	}
-}
-
-func handleInterruptSignals(cleanupFuncs map[string]CleanupFunc) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-	<-sigChan
-	log.Println("Received interrupt signal. Running cleanup...")
-	runCleanup(cleanupFuncs)
-	os.Exit(1)
-}
-
-func runTestsWithTimeout(m *testing.M, cleanupFuncs map[string]CleanupFunc) int {
-	resultChan := make(chan int)
-	go func() {
-		resultChan <- m.Run()
-	}()
-
-	timeout := 30 * time.Second // Set a timeout for the tests
-	select {
-	case code := <-resultChan: // Tests completed successfully
-		runCleanup(cleanupFuncs)
-		return code
-	case <-time.After(timeout): // Test timed out
-		log.Printf("Test timed out after %v. Running cleanup...\n", timeout)
-		runCleanup(cleanupFuncs)
-		return 1
 	}
 }
