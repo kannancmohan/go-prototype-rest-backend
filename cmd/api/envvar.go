@@ -37,7 +37,7 @@ func (e EnvVar) String() string {
 
 func initEnvVar(sec store.SecretFetchStore) *EnvVar {
 	return &EnvVar{
-		ApiAddr:                   fmt.Sprintf(":%s", sec.GetEnvString("PORT", "8080")),
+		ApiAddr:                   fmt.Sprintf(":%s", sec.GetEnvString("API_PORT", "8080")),
 		LogLevel:                  sec.GetEnvString("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
 		DBHost:                    sec.GetEnvString("DB_HOST", "192.168.0.30"),
 		DBPort:                    sec.GetEnvString("DB_PORT", "5432"),
