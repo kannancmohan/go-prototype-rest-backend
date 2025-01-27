@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 	var setupWG sync.WaitGroup
 	setupErrChan := make(chan error, 4) // Buffer size equals the number of services
 
-	go handleInterruptSignals(cleanupRegistry)// do cleanup on interrupt signals
+	go handleInterruptSignals(cleanupRegistry) // do cleanup on interrupt signals
 
 	// Helper to register setup and cleanup
 	setup := func(name string, setupFunc func() (func(context.Context) error, error)) {
