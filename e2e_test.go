@@ -20,24 +20,23 @@ import (
 func TestMain(m *testing.M) {
 	cleanupRegistry := NewCleanupRegistry()
 
-	// do cleanup in interrupt signals
-	go handleInterruptSignals(cleanupRegistry)
+	var setupWG sync.WaitGroup
+	setupErrChan := make(chan error, 4) // Buffer size equals the number of services
 
-	var wg sync.WaitGroup
-	errChan := make(chan error, 4) // Buffer size equals the number of services
+	go handleInterruptSignals(cleanupRegistry)// do cleanup on interrupt signals
 
 	// Helper to register setup and cleanup
 	setup := func(name string, setupFunc func() (func(context.Context) error, error)) {
-		wg.Add(1)
+		setupWG.Add(1)
 		go func(name string, setup func() (func(context.Context) error, error)) {
-			defer wg.Done()
+			defer setupWG.Done()
 			cleanup, err := setup()
 			if cleanup != nil {
 				cleanupRegistry.register(name, cleanup)
 			}
 			if err != nil {
 				log.Printf("Failed to start %s testcontainer: %v", name, err)
-				errChan <- err
+				setupErrChan <- err
 				return
 			}
 			log.Printf("Successfully started %s testconatiner", name)
@@ -49,12 +48,14 @@ func TestMain(m *testing.M) {
 	setup("elasticsearch", setupTestElasticsearch)
 	setup("kafka", setupTestKafka)
 
-	wg.Wait()
+	setupWG.Wait()
 
 	// Check if any service failed
-	if len(errChan) > 0 {
-		err := <-errChan
-		log.Printf("Setup failed with error: %v", err)
+	if len(setupErrChan) > 0 {
+		for len(setupErrChan) > 0 {
+			err := <-setupErrChan
+			log.Printf("Setup failed with error: %v", err)
+		}
 		cleanupRegistry.runCleanup(context.Background())
 		os.Exit(1)
 	}
