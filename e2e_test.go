@@ -52,13 +52,11 @@ func TestMain(m *testing.M) {
 	wg.Wait()
 
 	// Check if any service failed
-	select {
-	case err := <-errChan:
-		log.Printf("setup failed with error:%v", err)
+	if len(errChan) > 0 {
+		err := <-errChan
+		log.Printf("Setup failed with error: %v", err)
 		cleanupRegistry.RunCleanup(context.Background())
 		os.Exit(1)
-	default:
-		//runCleanup(cleanupFuncs)
 	}
 
 	code := runTestsWithTimeout(m, cleanupRegistry)
