@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 			defer wg.Done()
 			cleanup, err := setup()
 			if cleanup != nil {
-				cleanupRegistry.Register(name, cleanup)
+				cleanupRegistry.register(name, cleanup)
 			}
 			if err != nil {
 				log.Printf("Failed to start %s testcontainer: %v", name, err)
@@ -55,7 +55,7 @@ func TestMain(m *testing.M) {
 	if len(errChan) > 0 {
 		err := <-errChan
 		log.Printf("Setup failed with error: %v", err)
-		cleanupRegistry.RunCleanup(context.Background())
+		cleanupRegistry.runCleanup(context.Background())
 		os.Exit(1)
 	}
 
@@ -175,16 +175,16 @@ func setupTestKafka() (func(ctx context.Context) error, error) {
 	return cleanupFunc, nil
 }
 
-func handleInterruptSignals(cleanupRegistry *CleanupRegistry) {
+func handleInterruptSignals(cleanupRegistry *cleanupRegistry) {
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	<-sigChan
 	log.Println("Received interrupt signal. Running cleanup...")
-	cleanupRegistry.RunCleanup(context.Background())
+	cleanupRegistry.runCleanup(context.Background())
 	os.Exit(1)
 }
 
-func runTestsWithTimeout(m *testing.M, cleanupRegistry *CleanupRegistry) int {
+func runTestsWithTimeout(m *testing.M, cleanupRegistry *cleanupRegistry) int {
 	resultChan := make(chan int)
 	go func() {
 		resultChan <- m.Run()
@@ -193,35 +193,35 @@ func runTestsWithTimeout(m *testing.M, cleanupRegistry *CleanupRegistry) int {
 	timeout := 30 * time.Second // Set a timeout for the tests
 	select {
 	case code := <-resultChan: // Tests completed successfully
-		cleanupRegistry.RunCleanup(context.Background())
+		cleanupRegistry.runCleanup(context.Background())
 		return code
 	case <-time.After(timeout): // Test timed out
 		log.Printf("Test timed out after %v. Running cleanup...\n", timeout)
-		cleanupRegistry.RunCleanup(context.Background())
+		cleanupRegistry.runCleanup(context.Background())
 		return 1
 	}
 }
 
 type CleanupFunc func(context.Context) error
 
-type CleanupRegistry struct {
+type cleanupRegistry struct {
 	mu    sync.Mutex
 	funcs map[string]CleanupFunc
 }
 
-func NewCleanupRegistry() *CleanupRegistry {
-	return &CleanupRegistry{
+func NewCleanupRegistry() *cleanupRegistry {
+	return &cleanupRegistry{
 		funcs: make(map[string]CleanupFunc),
 	}
 }
 
-func (r *CleanupRegistry) Register(name string, cleanup CleanupFunc) {
+func (r *cleanupRegistry) register(name string, cleanup CleanupFunc) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.funcs[name] = cleanup
 }
 
-func (r *CleanupRegistry) RunCleanup(ctx context.Context) {
+func (r *cleanupRegistry) runCleanup(ctx context.Context) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var cleanupErrors []error
