@@ -1,11 +1,18 @@
+//go:build !skip_docker_tests
+
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"reflect"
 	"strconv"
 	"sync"
 	"syscall"
@@ -13,6 +20,7 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
 	"github.com/redis/go-redis/v9"
 )
@@ -65,10 +73,10 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestRoleStore_XXX(t *testing.T) {
+func TestUserEndpoints(t *testing.T) {
 	port, _ := testutils.GetFreePort()
 	os.Setenv("API_PORT", port)
-	apiCmd := exec.Command("go", "run", "./cmd/api/")
+	apiCmd := exec.Command("go", "run", "./api/")
 	if err := apiCmd.Start(); err != nil {
 		t.Fatalf("Failed to start API service: %v", err)
 	}
@@ -81,6 +89,25 @@ func TestRoleStore_XXX(t *testing.T) {
 
 	if err := testutils.WaitForPort(port, 10*time.Second); err != nil {
 		t.Fatalf("Server did not start: %v", err)
+	}
+
+	testCases, err := testutils.LoadTestCases("./e2e_testdata/test_case_create_users.json")
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+
+	apiAddr := "http://localhost:" + port
+	client := &http.Client{}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			resp, err := sendRequest(apiAddr, client, tc.Request)
+			if err != nil {
+				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
+			}
+			defer resp.Body.Close()
+			validateResponse(t, resp, &tc.Expected, compareTestUser)
+		})
 	}
 
 }
@@ -248,4 +275,70 @@ func (r *cleanupRegistry) runCleanup(ctx context.Context) {
 	if len(cleanupErrors) > 0 {
 		log.Println("Cleanup completed with errors.")
 	}
+}
+
+func convertExpectedBody[T any](data any) (T, error) {
+	var v T
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return v, fmt.Errorf("Error marshalling map to JSON: %s", err.Error())
+	}
+
+	err = json.Unmarshal(jsonData, &v)
+	if err != nil {
+		return v, fmt.Errorf("Error unmarshalling JSON into struct: %s", err.Error())
+	}
+	return v, nil
+}
+
+func sendRequest(serverAddr string, client *http.Client, testReq testutils.HttpTestRequest) (*http.Response, error) {
+	body, err := json.Marshal(testReq.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal test request body: %w", err)
+	}
+	req, err := http.NewRequest(testReq.Method, serverAddr+testReq.Path, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	for key, value := range testReq.Headers {
+		req.Header.Set(key, value)
+	}
+	return client.Do(req)
+}
+
+func validateResponse[T any](t *testing.T, resp *http.Response, expected *testutils.HttpTestExpectedResp, validateBody func(T, T) error) {
+	if expected.Status != resp.StatusCode {
+		t.Errorf("Expected statuscode:%d, but instead received statuscode:%d", expected.Status, resp.StatusCode)
+	}
+	if expected.Body != nil {
+		var respBody T
+		if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+			t.Errorf("error decoding response body. received (error: %v)", err)
+		}
+		expBody, err := convertExpectedBody[T](expected.Body)
+		if err != nil {
+			t.Errorf("error decoding expected body received (error: %v)", err)
+		}
+
+		if err := validateBody(expBody, respBody); err != nil {
+			t.Error(err.Error())
+		}
+	}
+	if expected.Error != nil {
+		var respBody map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+			t.Errorf("error decoding response body. received (error: %v)", err)
+		}
+		if !reflect.DeepEqual(expected.Error, respBody) {
+			t.Errorf("Expected error:%v, but received %v instead.", expected.Error, respBody)
+		}
+	}
+}
+
+func compareTestUser(expected, actual model.User) error {
+	if actual.ID > 0 && actual.Username == expected.Username {
+		return nil
+	}
+	return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
 }

@@ -21,9 +21,10 @@ type HttpTestRequest struct {
 type HttpTestExpectedResp struct {
 	Status int         `json:"status" yaml:"status"`
 	Body   interface{} `json:"body" yaml:"body"`
+	Error  interface{} `json:"error" yaml:"error"`
 }
 
-func loadTestCases(file string) ([]HttpTestCase, error) {
+func LoadTestCases(file string) ([]HttpTestCase, error) {
 	data, err := os.ReadFile(file)
 	if err != nil {
 		return nil, err

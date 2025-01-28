@@ -1,0 +1,66 @@
+[
+    {
+        "name": "Create User: Valid request",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/authentication/user",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "username": "test_user1",
+                "email": "test_user1@test.com",
+                "password": "test_user1",
+                "role": "admin"
+            }
+        },
+        "expected": {
+            "status": 201,
+            "body": {
+                "username": "test_user1",
+                "email": "test_user1@test.com"
+            }
+        }
+    },
+    {
+        "name": "Create User: Existing User",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/authentication/user",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "username": "test_user1",
+                "email": "test_user1@test.com",
+                "password": "test_user1",
+                "role": "admin"
+            }
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "create failed"
+            }
+        }
+    },
+    {
+        "name": "Create User: Invalid request body",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/authentication/user",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "key": "invalid"
+            }
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    }
+]
