@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"reflect"
+	"slices"
 	"strconv"
 	"sync"
 	"syscall"
@@ -91,17 +92,26 @@ func TestUserEndpoints(t *testing.T) {
 		t.Fatalf("Server did not start: %v", err)
 	}
 
-	testCases, err := testutils.LoadTestCases("./e2e_testdata/test_case_create_users.json")
+	createTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_create_user.json")
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
+	updateTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_update_user.json")
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	getTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_get_user.json")
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	testcases := slices.Concat(createTC, updateTC, getTC)
 
-	apiAddr := "http://localhost:" + port
+	serverAddr := fmt.Sprintf("http://localhost:%s", port)
 	client := &http.Client{}
 
-	for _, tc := range testCases {
+	for _, tc := range testcases {
 		t.Run(tc.Name, func(t *testing.T) {
-			resp, err := sendRequest(apiAddr, client, tc.Request)
+			resp, err := sendRequest(serverAddr, client, tc.Request)
 			if err != nil {
 				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
 			}
@@ -109,23 +119,6 @@ func TestUserEndpoints(t *testing.T) {
 			validateResponse(t, resp, &tc.Expected, compareTestUser)
 		})
 	}
-
-	updateTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_update_users.json")
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-
-	for _, tc := range updateTC {
-		t.Run(tc.Name, func(t *testing.T) {
-			resp, err := sendRequest(apiAddr, client, tc.Request)
-			if err != nil {
-				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
-			}
-			defer resp.Body.Close()
-			validateResponse(t, resp, &tc.Expected, compareTestUser)
-		})
-	}
-
 }
 
 func setupTestPostgres() (CleanupFunc, error) {

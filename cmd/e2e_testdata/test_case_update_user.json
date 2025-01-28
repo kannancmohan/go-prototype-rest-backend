@@ -39,6 +39,26 @@
         }
     },
     {
+        "name": "Update User: Missing user id",
+        "request": {
+            "method": "PUT",
+            "path": "/api/v1/users/9999999999999",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "email": "test_user1_updated@test.com",
+                "password": "test_user1_updated"
+            }
+        },
+        "expected": {
+            "status": 404,
+            "error": {
+                "error": "update failed"
+            }
+        }
+    },
+    {
         "name": "Update User: Invalid request body",
         "request": {
             "method": "PUT",
