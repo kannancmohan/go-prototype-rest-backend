@@ -1,0 +1,60 @@
+[
+    {
+        "name": "Update User: Valid Email update",
+        "request": {
+            "method": "PUT",
+            "path": "/api/v1/users/1",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "email": "test_user1_updated@test.com"
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "email": "test_user1_updated@test.com"
+            }
+        }
+    },
+    {
+        "name": "Update User: Invalid user id",
+        "request": {
+            "method": "PUT",
+            "path": "/api/v1/users/invalid_id",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "email": "test_user1_updated@test.com",
+                "password": "test_user1_updated"
+            }
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    },
+    {
+        "name": "Update User: Invalid request body",
+        "request": {
+            "method": "PUT",
+            "path": "/api/v1/users/1",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "key": "invalid"
+            }
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    }
+]

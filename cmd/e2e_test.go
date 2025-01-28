@@ -110,6 +110,22 @@ func TestUserEndpoints(t *testing.T) {
 		})
 	}
 
+	updateTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_update_users.json")
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+
+	for _, tc := range updateTC {
+		t.Run(tc.Name, func(t *testing.T) {
+			resp, err := sendRequest(apiAddr, client, tc.Request)
+			if err != nil {
+				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
+			}
+			defer resp.Body.Close()
+			validateResponse(t, resp, &tc.Expected, compareTestUser)
+		})
+	}
+
 }
 
 func setupTestPostgres() (CleanupFunc, error) {
@@ -337,8 +353,10 @@ func validateResponse[T any](t *testing.T, resp *http.Response, expected *testut
 }
 
 func compareTestUser(expected, actual model.User) error {
-	if actual.ID > 0 && actual.Username == expected.Username {
-		return nil
+	var isUserNameInvalid = (expected.Username != "" && actual.Username != expected.Username)
+	var isEmailInvalid = (expected.Email != "" && actual.Email != expected.Email)
+	if actual.ID < 1 || isUserNameInvalid || isEmailInvalid {
+		return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
 	}
-	return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
+	return nil
 }
