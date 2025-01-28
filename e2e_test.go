@@ -23,12 +23,13 @@ func TestMain(m *testing.M) {
 	var setupWG sync.WaitGroup
 	setupErrChan := make(chan error, 4) // Buffer size equals the number of services
 
+	//TODO - handle proper cleanup on terminating test in middle of container creation
 	go handleInterruptSignals(cleanupRegistry) // do cleanup on interrupt signals
 
 	// Helper to register setup and cleanup
-	setup := func(name string, setupFunc func() (func(context.Context) error, error)) {
+	setup := func(name string, setupFunc func() (CleanupFunc, error)) {
 		setupWG.Add(1)
-		go func(name string, setup func() (func(context.Context) error, error)) {
+		go func(name string, setup func() (CleanupFunc, error)) {
 			defer setupWG.Done()
 			cleanup, err := setup()
 			if cleanup != nil {
@@ -84,7 +85,7 @@ func TestRoleStore_XXX(t *testing.T) {
 
 }
 
-func setupTestPostgres() (func(ctx context.Context) error, error) {
+func setupTestPostgres() (CleanupFunc, error) {
 	instance := testutils.NewTestPostgresContainer("e2e_test", "test", "test")
 	container, cleanupFunc, err := instance.CreatePostgresTestContainer()
 	if err != nil {
@@ -122,7 +123,7 @@ func setupTestPostgres() (func(ctx context.Context) error, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestRedis() (func(ctx context.Context) error, error) {
+func setupTestRedis() (CleanupFunc, error) {
 	instance := testutils.NewTestRedisContainer()
 	container, cleanupFunc, err := instance.CreateRedisTestContainer("")
 	if err != nil {
@@ -144,7 +145,7 @@ func setupTestRedis() (func(ctx context.Context) error, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestElasticsearch() (func(ctx context.Context) error, error) {
+func setupTestElasticsearch() (CleanupFunc, error) {
 	instance := testutils.NewTestElasticsearchContainer()
 	container, cleanupFunc, err := instance.CreateElasticsearchTestContainer("")
 	if err != nil {
@@ -158,7 +159,7 @@ func setupTestElasticsearch() (func(ctx context.Context) error, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestKafka() (func(ctx context.Context) error, error) {
+func setupTestKafka() (CleanupFunc, error) {
 	//return nil, fmt.Errorf("test error")
 	instance := testutils.NewTestKafkaContainer("e2e-test-kafka")
 	container, cleanupFunc, err := instance.CreateKafkaTestContainer()
