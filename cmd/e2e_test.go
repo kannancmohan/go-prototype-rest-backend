@@ -1,11 +1,19 @@
+//go:build !skip_docker_tests
+
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"reflect"
+	"slices"
 	"strconv"
 	"sync"
 	"syscall"
@@ -13,6 +21,7 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
 	"github.com/redis/go-redis/v9"
 )
@@ -23,12 +32,13 @@ func TestMain(m *testing.M) {
 	var setupWG sync.WaitGroup
 	setupErrChan := make(chan error, 4) // Buffer size equals the number of services
 
+	//TODO - handle proper cleanup on terminating test in middle of container creation
 	go handleInterruptSignals(cleanupRegistry) // do cleanup on interrupt signals
 
 	// Helper to register setup and cleanup
-	setup := func(name string, setupFunc func() (func(context.Context) error, error)) {
+	setup := func(name string, setupFunc func() (CleanupFunc, error)) {
 		setupWG.Add(1)
-		go func(name string, setup func() (func(context.Context) error, error)) {
+		go func(name string, setup func() (CleanupFunc, error)) {
 			defer setupWG.Done()
 			cleanup, err := setup()
 			if cleanup != nil {
@@ -64,10 +74,10 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestRoleStore_XXX(t *testing.T) {
+func TestUserEndpoints(t *testing.T) {
 	port, _ := testutils.GetFreePort()
 	os.Setenv("API_PORT", port)
-	apiCmd := exec.Command("go", "run", "./cmd/api/")
+	apiCmd := exec.Command("go", "run", "./api/")
 	if err := apiCmd.Start(); err != nil {
 		t.Fatalf("Failed to start API service: %v", err)
 	}
@@ -82,9 +92,36 @@ func TestRoleStore_XXX(t *testing.T) {
 		t.Fatalf("Server did not start: %v", err)
 	}
 
+	createTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_create_user.json")
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	updateTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_update_user.json")
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	getTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_get_user.json")
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	testcases := slices.Concat(createTC, updateTC, getTC)
+
+	serverAddr := fmt.Sprintf("http://localhost:%s", port)
+	client := &http.Client{}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			resp, err := sendRequest(serverAddr, client, tc.Request)
+			if err != nil {
+				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
+			}
+			defer resp.Body.Close()
+			validateResponse(t, resp, &tc.Expected, compareTestUser)
+		})
+	}
 }
 
-func setupTestPostgres() (func(ctx context.Context) error, error) {
+func setupTestPostgres() (CleanupFunc, error) {
 	instance := testutils.NewTestPostgresContainer("e2e_test", "test", "test")
 	container, cleanupFunc, err := instance.CreatePostgresTestContainer()
 	if err != nil {
@@ -122,7 +159,7 @@ func setupTestPostgres() (func(ctx context.Context) error, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestRedis() (func(ctx context.Context) error, error) {
+func setupTestRedis() (CleanupFunc, error) {
 	instance := testutils.NewTestRedisContainer()
 	container, cleanupFunc, err := instance.CreateRedisTestContainer("")
 	if err != nil {
@@ -144,7 +181,7 @@ func setupTestRedis() (func(ctx context.Context) error, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestElasticsearch() (func(ctx context.Context) error, error) {
+func setupTestElasticsearch() (CleanupFunc, error) {
 	instance := testutils.NewTestElasticsearchContainer()
 	container, cleanupFunc, err := instance.CreateElasticsearchTestContainer("")
 	if err != nil {
@@ -158,7 +195,7 @@ func setupTestElasticsearch() (func(ctx context.Context) error, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestKafka() (func(ctx context.Context) error, error) {
+func setupTestKafka() (CleanupFunc, error) {
 	//return nil, fmt.Errorf("test error")
 	instance := testutils.NewTestKafkaContainer("e2e-test-kafka")
 	container, cleanupFunc, err := instance.CreateKafkaTestContainer()
@@ -247,4 +284,72 @@ func (r *cleanupRegistry) runCleanup(ctx context.Context) {
 	if len(cleanupErrors) > 0 {
 		log.Println("Cleanup completed with errors.")
 	}
+}
+
+func convertExpectedBody[T any](data any) (T, error) {
+	var v T
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		return v, fmt.Errorf("Error marshalling map to JSON: %s", err.Error())
+	}
+
+	err = json.Unmarshal(jsonData, &v)
+	if err != nil {
+		return v, fmt.Errorf("Error unmarshalling JSON into struct: %s", err.Error())
+	}
+	return v, nil
+}
+
+func sendRequest(serverAddr string, client *http.Client, testReq testutils.HttpTestRequest) (*http.Response, error) {
+	body, err := json.Marshal(testReq.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal test request body: %w", err)
+	}
+	req, err := http.NewRequest(testReq.Method, serverAddr+testReq.Path, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	for key, value := range testReq.Headers {
+		req.Header.Set(key, value)
+	}
+	return client.Do(req)
+}
+
+func validateResponse[T any](t *testing.T, resp *http.Response, expected *testutils.HttpTestExpectedResp, validateBody func(T, T) error) {
+	if expected.Status != resp.StatusCode {
+		t.Errorf("Expected statuscode:%d, but instead received statuscode:%d", expected.Status, resp.StatusCode)
+	}
+	if expected.Body != nil {
+		var respBody T
+		if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+			t.Errorf("error decoding response body. received (error: %v)", err)
+		}
+		expBody, err := convertExpectedBody[T](expected.Body)
+		if err != nil {
+			t.Errorf("error decoding expected body received (error: %v)", err)
+		}
+
+		if err := validateBody(expBody, respBody); err != nil {
+			t.Error(err.Error())
+		}
+	}
+	if expected.Error != nil {
+		var respBody map[string]interface{}
+		if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+			t.Errorf("error decoding response body. received (error: %v)", err)
+		}
+		if !reflect.DeepEqual(expected.Error, respBody) {
+			t.Errorf("Expected error:%v, but received %v instead.", expected.Error, respBody)
+		}
+	}
+}
+
+func compareTestUser(expected, actual model.User) error {
+	var isUserNameInvalid = (expected.Username != "" && actual.Username != expected.Username)
+	var isEmailInvalid = (expected.Email != "" && actual.Email != expected.Email)
+	if actual.ID < 1 || isUserNameInvalid || isEmailInvalid {
+		return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
+	}
+	return nil
 }
