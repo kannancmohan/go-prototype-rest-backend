@@ -113,19 +113,19 @@ func TestUserEndpoints(t *testing.T) {
 		t.Fatalf("Server did not start: %v", err)
 	}
 
-	createTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_create_user.json")
+	createTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_create_user.json")
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
-	updateTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_update_user.json")
+	updateTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_update_user.json")
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
-	getTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_get_user.json")
+	getTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_get_user.json")
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
-	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_delete_user.json")
+	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_delete_user.json")
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
