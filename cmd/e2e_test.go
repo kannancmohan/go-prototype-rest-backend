@@ -125,7 +125,11 @@ func TestUserEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
-	testcases := slices.Concat(createTC, updateTC, getTC)
+	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/test_case_delete_user.json")
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
 
 	serverAddr := fmt.Sprintf("http://localhost:%s", port)
 	client := &http.Client{}

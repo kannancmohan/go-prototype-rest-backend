@@ -92,3 +92,17 @@ func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	renderResponse(w, http.StatusOK, user)
 }
+
+func (h *UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := getIntParam("userID", r)
+	if err != nil {
+		renderErrorResponse(w, "invalid request", err)
+		return
+	}
+	ctx := r.Context()
+	if err := h.service.Delete(ctx, id); err != nil {
+		renderErrorResponse(w, "delete failed", err)
+		return
+	}
+	renderResponse(w, http.StatusOK, id)
+}
