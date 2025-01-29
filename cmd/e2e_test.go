@@ -24,20 +24,25 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/exp/maps"
 )
 
 func TestMain(m *testing.M) {
 	cleanupRegistry := NewCleanupRegistry()
 
 	var setupWG sync.WaitGroup
-	setupErrChan := make(chan error, 4) // Buffer size equals the number of services
+	setupProcessChan := make(chan string, 4)
+	setupErrChan := make(chan error, 4)         // Buffer size equals the number of services
+	interruptSigChan := make(chan os.Signal, 1) // Interrupt signal channel
 
-	//TODO - handle proper cleanup on terminating test in middle of container creation
-	go handleInterruptSignals(cleanupRegistry) // do cleanup on interrupt signals
+	go func() {
+		signal.Notify(interruptSigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	}()
 
 	// Helper to register setup and cleanup
 	setup := func(name string, setupFunc func() (CleanupFunc, error)) {
 		setupWG.Add(1)
+		setupProcessChan <- name
 		go func(name string, setup func() (CleanupFunc, error)) {
 			defer setupWG.Done()
 			cleanup, err := setup()
@@ -58,20 +63,36 @@ func TestMain(m *testing.M) {
 	setup("elasticsearch", setupTestElasticsearch)
 	setup("kafka", setupTestKafka)
 
-	setupWG.Wait()
+	go func() {
+		setupWG.Wait()
+		close(setupProcessChan)
+	}()
 
-	// Check if any service failed
-	if len(setupErrChan) > 0 {
-		for len(setupErrChan) > 0 {
-			err := <-setupErrChan
-			log.Printf("Setup failed with error: %v", err)
+	var exitCode int
+loop:
+	for { //infinite loop so as continuously check channels until the 'loop' is break
+		select {
+		case _, ok := <-setupProcessChan:
+			if !ok {
+				log.Println("Setup done. Executing test cases...")
+				exitCode = m.Run()
+				break loop
+			}
+
+		case <-setupErrChan:
+			log.Println("Setup failed with error")
+			exitCode = 1
+			break loop
+
+		case <-interruptSigChan:
+			log.Println("Received interrupt signal")
+			exitCode = 1
+			break loop
 		}
-		cleanupRegistry.runCleanup(context.Background())
-		os.Exit(1)
 	}
-
-	code := runTestsWithTimeout(m, cleanupRegistry)
-	os.Exit(code)
+	//TODO - handle proper cleanup on interrupt signal. i.e terminating test in middle of container creation
+	cleanupRegistry.runCleanup(context.Background())
+	os.Exit(exitCode)
 }
 
 func TestUserEndpoints(t *testing.T) {
@@ -173,7 +194,7 @@ func setupTestRedis() (CleanupFunc, error) {
 
 	connOpt, err := redis.ParseURL(connStr)
 	if err != nil {
-		return nil, err
+		return cleanupFunc, err
 	}
 
 	os.Setenv("REDIS_HOST", connOpt.Addr)
@@ -196,7 +217,6 @@ func setupTestElasticsearch() (CleanupFunc, error) {
 }
 
 func setupTestKafka() (CleanupFunc, error) {
-	//return nil, fmt.Errorf("test error")
 	instance := testutils.NewTestKafkaContainer("e2e-test-kafka")
 	container, cleanupFunc, err := instance.CreateKafkaTestContainer()
 	if err != nil {
@@ -211,33 +231,6 @@ func setupTestKafka() (CleanupFunc, error) {
 	os.Setenv("KAFKA_HOST", addr)
 	os.Setenv("API_KAFKA_TOPIC", "e2e_test_posts")
 	return cleanupFunc, nil
-}
-
-func handleInterruptSignals(cleanupRegistry *cleanupRegistry) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-	<-sigChan
-	log.Println("Received interrupt signal. Running cleanup...")
-	cleanupRegistry.runCleanup(context.Background())
-	os.Exit(1)
-}
-
-func runTestsWithTimeout(m *testing.M, cleanupRegistry *cleanupRegistry) int {
-	resultChan := make(chan int)
-	go func() {
-		resultChan <- m.Run()
-	}()
-
-	timeout := 30 * time.Second // Set a timeout for the tests
-	select {
-	case code := <-resultChan: // Tests completed successfully
-		cleanupRegistry.runCleanup(context.Background())
-		return code
-	case <-time.After(timeout): // Test timed out
-		log.Printf("Test timed out after %v. Running cleanup...\n", timeout)
-		cleanupRegistry.runCleanup(context.Background())
-		return 1
-	}
 }
 
 type CleanupFunc func(context.Context) error
@@ -263,6 +256,8 @@ func (r *cleanupRegistry) runCleanup(ctx context.Context) {
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var cleanupErrors []error
+
+	log.Printf("Inside cleanup, containers to clean:%v", maps.Keys(r.funcs))
 
 	for name, cleanup := range r.funcs {
 		wg.Add(1)
