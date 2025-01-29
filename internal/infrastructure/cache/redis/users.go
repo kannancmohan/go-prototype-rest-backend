@@ -73,6 +73,19 @@ func (s *userStore) Update(ctx context.Context, user *model.User) (*model.User, 
 	return u, nil
 }
 
+func (s *userStore) Delete(ctx context.Context, userID int64) error {
+	//TODO add transaction for atomicity ??
+	err := s.orig.Delete(ctx, userID)
+	if err != nil {
+		return err
+	}
+	cacheKey := userCacheKey(userID)
+	if err := s.client.Del(ctx, cacheKey).Err(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func userCacheKey(value any) string {
 	return fmt.Sprintf("user:%v", value)
 }
