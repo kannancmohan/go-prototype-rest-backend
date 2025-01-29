@@ -38,6 +38,7 @@ type UserService interface {
 	GetByID(context.Context, int64) (*model.User, error)
 	CreateAndInvite(context.Context, dto.CreateUserReq) (*model.User, error)
 	Update(context.Context, dto.UpdateUserReq) (*model.User, error)
+	Delete(context.Context, int64) error
 }
 
 type PostService interface {

@@ -1,0 +1,38 @@
+[
+    {
+        "name": "Delete User: Valid user id",
+        "request": {
+            "method": "DELETE",
+            "path": "/api/v1/users/1"
+        },
+        "expected": {
+            "status": 200
+        }
+    },
+    {
+        "name": "Delete User: Invalid user id",
+        "request": {
+            "method": "DELETE",
+            "path": "/api/v1/users/invalid_id"
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    },
+    {
+        "name": "Delete User: Missing user id",
+        "request": {
+            "method": "DELETE",
+            "path": "/api/v1/users/9999999999999"
+        },
+        "expected": {
+            "status": 404,
+            "error": {
+                "error": "delete failed"
+            }
+        }
+    }
+]

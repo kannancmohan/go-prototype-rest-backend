@@ -70,3 +70,10 @@ func (u *userService) Update(ctx context.Context, payload dto.UpdateUserReq) (*m
 	}
 	return updatedUser, nil
 }
+
+func (p *userService) Delete(ctx context.Context, userID int64) error {
+	if err := p.store.Delete(ctx, userID); err != nil {
+		return err
+	}
+	return nil
+}

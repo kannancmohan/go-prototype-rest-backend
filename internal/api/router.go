@@ -70,20 +70,12 @@ func (rt *router) RegisterHandlers() http.Handler {
 
 		r.Route("/users", func(r chi.Router) {
 			//r.Put("/activate/{token}", app.activateUserHandler)
-
 			r.Route("/{userID}", func(r chi.Router) {
 				//r.Use(app.AuthTokenMiddleware)
-
 				r.Get("/", rt.handler.UserHandler.GetUserHandler)
 				r.Put("/", rt.handler.UserHandler.UpdateUserHandler)
-				//r.Put("/follow", app.followUserHandler)
-				//r.Put("/unfollow", app.unfollowUserHandler)
+				r.Delete("/", rt.handler.UserHandler.DeleteUserHandler)
 			})
-
-			// r.Group(func(r chi.Router) {
-			// 	r.Use(app.AuthTokenMiddleware)
-			// 	r.Get("/feed", app.getUserFeedHandler)
-			// })
 		})
 
 		// Public routes

@@ -24,4 +24,5 @@ type UserDBStore interface {
 	GetByID(context.Context, int64) (*model.User, error)
 	Create(context.Context, *model.User) error
 	Update(context.Context, *model.User) (*model.User, error)
+	Delete(context.Context, int64) error
 }

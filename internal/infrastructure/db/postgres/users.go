@@ -179,3 +179,26 @@ func (s *userStore) Update(ctx context.Context, user *model.User) (*model.User, 
 
 	return updatedUser, nil
 }
+
+func (s *userStore) Delete(ctx context.Context, userID int64) error {
+	query := `DELETE FROM users WHERE id = $1`
+
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
+	defer cancel()
+
+	res, err := s.db.ExecContext(ctx, query, userID)
+	if err != nil {
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "delete user")
+	}
+
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return common.WrapErrorf(err, common.ErrorCodeUnknown, "delete user: rows affected error")
+	}
+
+	if rows == 0 {
+		return common.ErrNotFound
+	}
+
+	return nil
+}

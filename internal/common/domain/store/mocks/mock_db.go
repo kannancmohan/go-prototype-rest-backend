@@ -173,6 +173,20 @@ func (mr *MockUserDBStoreMockRecorder) Create(arg0, arg1 any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockUserDBStore)(nil).Create), arg0, arg1)
 }
 
+// Delete mocks base method.
+func (m *MockUserDBStore) Delete(arg0 context.Context, arg1 int64) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockUserDBStoreMockRecorder) Delete(arg0, arg1 any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockUserDBStore)(nil).Delete), arg0, arg1)
+}
+
 // GetByID mocks base method.
 func (m *MockUserDBStore) GetByID(arg0 context.Context, arg1 int64) (*model.User, error) {
 	m.ctrl.T.Helper()
