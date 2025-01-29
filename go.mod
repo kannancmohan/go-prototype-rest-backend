@@ -12,6 +12,7 @@ require (
 	github.com/testcontainers/testcontainers-go v0.35.0
 	go.uber.org/mock v0.4.0
 	golang.org/x/crypto v0.31.0
+	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 )
 
 require (
@@ -63,7 +64,6 @@ require (
 	go.opentelemetry.io/otel/metric v1.29.0 // indirect
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c // indirect
 	golang.org/x/mod v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
