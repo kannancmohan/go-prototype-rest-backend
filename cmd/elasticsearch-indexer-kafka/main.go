@@ -28,6 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error init infra resources: %s", err.Error())
 	}
+	defer infra.Close() // Ensure resources are closed when main exits
 
 	store, err := initStoreResources(infra)
 	if err != nil {
@@ -103,7 +104,7 @@ func initLogger(env *EnvVar) error {
 type appServer struct {
 	infra  *infraResource
 	store  storeResource
-	doneC  chan struct{} // to signal that kafka consumer is done 
+	doneC  chan struct{} // to signal that kafka consumer is done
 	closeC chan struct{} // to signal occurrence of interrupt signal to kafka consumer(so as it can stop)
 }
 
@@ -194,38 +195,27 @@ func (s *appServer) listenAndServe() error {
 }
 
 func (s *appServer) handleShutdown(errC chan<- error) {
-	// Create a context that listens for OS termination signals
-	termSigCtx, termSigCtxCancelFunc := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 
 	go func() {
-		<-termSigCtx.Done() // Block until any interrupt signal is received
-		slog.Info("Shutdown signal received")
+		sig := <-sigChan
+		slog.Info("Shutdown signal received", "signal", sig.String())
 
 		timeoutCtx, timeoutCtxCancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
-		defer func() {
-			s.infra.kafkaCons.Close()
-			termSigCtxCancelFunc()
-			timeoutCtxCancelFunc()
-			close(errC) //close the errC channel
-		}()
+		defer timeoutCtxCancelFunc()
 
 		close(s.closeC) // Notify kafka consumer code that we're shutting down because of interrupt signal
 
-	loop:
-		for {
-			select {
-			case <-timeoutCtx.Done(): //throw err in case the ctx timeout
-				select {
-				case errC <- timeoutCtx.Err(): // Send error if buffer allows
-				default:
-					slog.Warn("Timeout error dropped (buffer full)")
-				}
-				break loop
-			case <-s.doneC:
-				break loop
-			}
+		// Wait for either the timeout or the Kafka consumer to finish
+		select {
+		case <-timeoutCtx.Done(): // Throw error if the context times out
+			errC <- timeoutCtx.Err()
+		case <-s.doneC:
 		}
+		
 		slog.Info("Shutdown completed")
+		close(errC) // Close the error channel to signal completion
 	}()
 }
 
@@ -237,6 +227,11 @@ type infraResource struct {
 
 func NewInfraResource(env *EnvVar, kafkaCons *kafka.Consumer, elasticsearch *esv8.Client) *infraResource {
 	return &infraResource{env: env, kafkaCons: kafkaCons, elasticsearch: elasticsearch}
+}
+
+func (i *infraResource) Close() {
+	slog.Info("Closing Kafka consumer")
+	i.kafkaCons.Close()
 }
 
 type storeResource struct {
