@@ -24,7 +24,7 @@ func (e *testElasticsearchContainer) CreateElasticsearchTestContainer(containerN
 	if containerName == "" {
 		containerName = fmt.Sprintf("es-instance-%s", uuid.New().String())
 	}
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	ctr, err := elasticsearch.Run(

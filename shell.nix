@@ -9,7 +9,7 @@ pkgs.mkShellNoCC {
     packages = with pkgs; [
         pkgs.tree # optional
         ## added for golang
-        pkgs.go_1_22
+        pkgs.go_1_23
         pkgs.delve # debugger for Go
         pkgs.air # hot reload for Go
         pkgs.clang # added for vscode Go extension to work
