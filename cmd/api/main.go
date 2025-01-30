@@ -40,75 +40,13 @@ func main() {
 		log.Fatalf("Error init store resources: %s", err.Error())
 	}
 
-	s, _ := newServer(infra.env, store.postStore, store.userStore, store.msgBrokerStore, store.searchStore)
-	errC := make(chan error, 1)                    //channel to capture error while start/kill application
-	handleShutdown(s, infra.db, infra.redis, errC) //gracefully shutting down applications in response to system signals
-	startServer(s, errC)
+	app := NewAppServer(infra, store)
+	errC := make(chan error, 1) //channel to capture error while start/kill application
+	app.handleShutdown(errC)
+	app.start(errC)
+
 	if err := <-errC; err != nil {
 		log.Fatalf("Error while running: %s", err)
-	}
-}
-
-func newServer(env *EnvVar, pStore store.PostDBStore, uStore store.UserDBStore, messageBrokerStore store.PostMessageBrokerStore, searchStore store.PostSearchStore) (*http.Server, error) {
-	pService := service.NewPostService(pStore, messageBrokerStore, searchStore)
-	uService := service.NewUserService(uStore)
-
-	handler := handler.NewHandler(uService, pService)
-
-	router := api.NewRouter(handler, env.ApiCorsAllowedOrigin)
-	routes := router.RegisterHandlers()
-	return &http.Server{
-		Addr:         env.ApiAddr,
-		Handler:      routes,
-		WriteTimeout: time.Second * 30,
-		ReadTimeout:  time.Second * 10,
-		IdleTimeout:  time.Minute,
-	}, nil
-}
-
-func startServer(s *http.Server, errC chan<- error) {
-	go func() {
-		slog.Info(fmt.Sprintf("Listening on host: %s", s.Addr))
-		// After Shutdown or Close, the returned error is ErrServerClosed
-		if err := s.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errC <- err
-		}
-	}()
-}
-
-func handleShutdown(s *http.Server, db *sql.DB, redis *redis.Client, errC chan<- error) {
-	// create notification context that terminates if one of the mentioned signal(eg os.Interrup) is triggered
-	ntyCtx, ntyStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-	go func() {
-		<-ntyCtx.Done() // Block until any interrupt signal is received
-		slog.Info("Shutdown signal received")
-
-		ctxTimeout, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer closeResources(db, redis)
-		defer func() {
-			ntyStop()
-			ctxCancel()
-			close(errC) //close the errC channel
-		}()
-
-		// Shutdown the server
-		s.SetKeepAlivesEnabled(false)
-		if err := s.Shutdown(ctxTimeout); err != nil {
-			errC <- err //log shutdown error if any
-		}
-
-		slog.Info("Shutdown completed")
-	}()
-}
-
-func closeResources(db *sql.DB, redis *redis.Client) {
-	if db != nil {
-		db.Close()
-		slog.Info("Database connection closed")
-	}
-	if redis != nil {
-		redis.Close()
-		slog.Info("Redis client connection closed")
 	}
 }
 
@@ -218,6 +156,52 @@ func NewAppServer(infra *infraResource, store storeResource) *appServer {
 		IdleTimeout:  time.Minute,
 	}
 	return &appServer{infra: infra, store: store, httpServer: httpServer}
+}
+
+func (a *appServer) start(errC chan<- error) {
+	go func() {
+		slog.Info(fmt.Sprintf("Listening on host: %s", a.httpServer.Addr))
+		// After Shutdown or Close, the returned error is ErrServerClosed
+		if err := a.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errC <- err
+		}
+	}()
+}
+
+func (a *appServer) handleShutdown(errC chan<- error) {
+	// create notification context that terminates if one of the mentioned signal(eg os.Interrup) is triggered
+	ntyCtx, ntyStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		<-ntyCtx.Done() // Block until any interrupt signal is received
+		slog.Info("Shutdown signal received")
+
+		ctxTimeout, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer closeResources(a.infra.db, a.infra.redis)
+		defer func() {
+			ntyStop()
+			ctxCancel()
+			close(errC) //close the errC channel
+		}()
+
+		// Shutdown the server
+		a.httpServer.SetKeepAlivesEnabled(false)
+		if err := a.httpServer.Shutdown(ctxTimeout); err != nil {
+			errC <- err //log shutdown error if any
+		}
+
+		slog.Info("Shutdown completed")
+	}()
+}
+
+func closeResources(db *sql.DB, redis *redis.Client) {
+	if db != nil {
+		db.Close()
+		slog.Info("Database connection closed")
+	}
+	if redis != nil {
+		redis.Close()
+		slog.Info("Redis client connection closed")
+	}
 }
 
 type infraResource struct {
