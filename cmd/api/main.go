@@ -30,7 +30,7 @@ import (
 )
 
 func main() {
-	infra, err := initInfraResources()
+	infra, err := initInfraResources(app_common.GetEnvNameFromCommandLine())
 	if err != nil {
 		log.Fatalf("Error init infra resources: %s", err.Error())
 	}
@@ -129,13 +129,17 @@ func initStoreResources(infra *infraResource) (storeResource, error) {
 	return NewStoreResource(cachedPStore, cachedUStore, messageBrokerStore, searchStore), nil
 }
 
-func initInfraResources() (*infraResource, error) {
-	env, err := initSecret(app_common.GetEnvNameFromCommandLine())
+func initInfraResources(envName string) (*infraResource, error) {
+
+	//get secrets
+	secretStore := envvarsecret.NewSecretFetchStore(envName)
+	env := initEnvVar(secretStore)
+
+	// set logger
+	err := initLogger(env)
 	if err != nil {
 		return nil, fmt.Errorf("Error init secret: %w", err)
 	}
-
-	initLogger(env) // error ignored on purpose
 
 	//database
 	dbCfg := app_common.DBConfig{
@@ -179,11 +183,6 @@ func initInfraResources() (*infraResource, error) {
 	}
 
 	return NewInfraResource(env, db, redis, kafkaProd, es), nil
-}
-
-func initSecret(envFileName string) (*EnvVar, error) {
-	secretStore := envvarsecret.NewSecretFetchStore(envFileName)
-	return initEnvVar(secretStore), nil
 }
 
 func initLogger(env *EnvVar) error {

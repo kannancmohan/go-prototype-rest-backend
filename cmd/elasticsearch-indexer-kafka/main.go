@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
@@ -30,29 +31,19 @@ type Server struct {
 
 func main() {
 
-	env, err := initSecret(app_common.GetEnvNameFromCommandLine())
+	infra, err := initInfraResources(app_common.GetEnvNameFromCommandLine())
 	if err != nil {
-		log.Fatalf("Error init secret: %s", err)
+		log.Fatalf("Error init infra resources: %s", err.Error())
 	}
 
-	initLogger(env) // error ignored on purpose
-	es, err := initElasticSearch(env)
+	store, err := initStoreResources(infra)
 	if err != nil {
-		log.Fatalf("Error init ElasticSearch: %s", err)
-	}
-	kafka, err := initKafkaConsumer(env)
-	if err != nil {
-		log.Fatalf("Error init KafkaConsumer: %s", err)
-	}
-
-	searchStore, err := elasticsearch.NewPostSearchIndexStore(es, env.ElasticIndexName)
-	if err != nil {
-		log.Fatalf("Error init PostSearchIndexStore: %s", err)
+		log.Fatalf("Error init store resources: %s", err.Error())
 	}
 
 	s := &Server{
-		kafka:       kafka,
-		searchStore: searchStore,
+		kafka:       infra.kafkaCons,
+		searchStore: store.searchStore,
 		doneC:       make(chan struct{}),
 		closeC:      make(chan struct{}),
 	}
@@ -183,20 +174,49 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	}
 }
 
-func initSecret(envFileName string) (*EnvVar, error) {
-	secretStore := envvarsecret.NewSecretFetchStore(envFileName)
-	return initEnvVar(secretStore), nil
+func initStoreResources(infra *infraResource) (storeResource, error) {
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(infra.elasticsearch, infra.env.ElasticIndexName)
+	if err != nil {
+		return storeResource{}, fmt.Errorf("Error init PostSearchIndexStore: %w", err)
+	}
+	return NewStoreResource(searchStore), nil
 }
 
-func initElasticSearch(env *EnvVar) (*esv8.Client, error) {
+func initInfraResources(envName string) (*infraResource, error) {
+
+	//get secrets
+	secretStore := envvarsecret.NewSecretFetchStore(envName)
+	env := initEnvVar(secretStore)
+
+	// set logger
+	err := initLogger(env)
+	if err != nil {
+		return nil, fmt.Errorf("Error init secret: %w", err)
+	}
+
+	//kafka
+	kafkaConsCfg := app_common.KafkaConsumerConfig{
+		Addr:             env.KafkaHost,
+		GroupID:          "elasticsearch-indexer",
+		AutoOffsetRest:   "earliest",
+		EnableAutoCommit: false,
+		Topics:           []string{env.KafkaConsumerTopic},
+	}
+	kafkaCons, err := kafkaConsCfg.NewKafkaConsumer()
+	if err != nil {
+		return nil, fmt.Errorf("Error init kafka consumer: %w", err)
+	}
+
+	//elastic
 	esConfig := app_common.ElasticSearchConfig{
 		Addr: env.ElasticHost,
 	}
 	es, err := esConfig.NewConnection()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Error init ElasticSearch: %w", err)
 	}
-	return es, nil
+
+	return NewInfraResource(env, kafkaCons, es), nil
 }
 
 func initLogger(env *EnvVar) error {
@@ -210,17 +230,20 @@ func initLogger(env *EnvVar) error {
 	return nil
 }
 
-func initKafkaConsumer(env *EnvVar) (*kafka.Consumer, error) {
-	kafkaCons := app_common.KafkaConsumerConfig{
-		Addr:             env.KafkaHost,
-		GroupID:          "elasticsearch-indexer",
-		AutoOffsetRest:   "earliest",
-		EnableAutoCommit: false,
-		Topics:           []string{env.KafkaConsumerTopic},
-	}
-	p, err := kafkaCons.NewKafkaConsumer()
-	if err != nil {
-		return nil, err
-	}
-	return p, nil
+type infraResource struct {
+	env           *EnvVar
+	kafkaCons     *kafka.Consumer
+	elasticsearch *esv8.Client
+}
+
+func NewInfraResource(env *EnvVar, kafkaCons *kafka.Consumer, elasticsearch *esv8.Client) *infraResource {
+	return &infraResource{env: env, kafkaCons: kafkaCons, elasticsearch: elasticsearch}
+}
+
+type storeResource struct {
+	searchStore store.PostSearchIndexStore
+}
+
+func NewStoreResource(searchStore store.PostSearchIndexStore) storeResource {
+	return storeResource{searchStore: searchStore}
 }
