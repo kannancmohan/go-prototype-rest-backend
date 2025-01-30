@@ -213,9 +213,9 @@ func (s *appServer) handleShutdown(errC chan<- error) {
 			errC <- timeoutCtx.Err()
 		case <-s.doneC:
 		}
-		
+
 		slog.Info("Shutdown completed")
-		close(errC) // Close the error channel to signal completion
+		close(errC) // Close the error channel
 	}()
 }
 

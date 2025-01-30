@@ -34,6 +34,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error init infra resources: %s", err.Error())
 	}
+	defer infra.Close() // Ensure resources are closed when main exits
 
 	store, err := initStoreResources(infra)
 	if err != nil {
@@ -169,19 +170,15 @@ func (a *appServer) start(errC chan<- error) {
 }
 
 func (a *appServer) handleShutdown(errC chan<- error) {
-	// create notification context that terminates if one of the mentioned signal(eg os.Interrup) is triggered
-	ntyCtx, ntyStop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+
 	go func() {
-		<-ntyCtx.Done() // Block until any interrupt signal is received
-		slog.Info("Shutdown signal received")
+		sig := <-sigChan
+		slog.Info("Shutdown signal received", "signal", sig.String())
 
 		ctxTimeout, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer closeResources(a.infra.db, a.infra.redis)
-		defer func() {
-			ntyStop()
-			ctxCancel()
-			close(errC) //close the errC channel
-		}()
+		defer ctxCancel()
 
 		// Shutdown the server
 		a.httpServer.SetKeepAlivesEnabled(false)
@@ -190,19 +187,20 @@ func (a *appServer) handleShutdown(errC chan<- error) {
 		}
 
 		slog.Info("Shutdown completed")
+		close(errC) // Close the error channel
 	}()
 }
 
-func closeResources(db *sql.DB, redis *redis.Client) {
-	if db != nil {
-		db.Close()
-		slog.Info("Database connection closed")
-	}
-	if redis != nil {
-		redis.Close()
-		slog.Info("Redis client connection closed")
-	}
-}
+// func closeResources(db *sql.DB, redis *redis.Client) {
+// 	if db != nil {
+// 		db.Close()
+// 		slog.Info("Database connection closed")
+// 	}
+// 	if redis != nil {
+// 		redis.Close()
+// 		slog.Info("Redis client connection closed")
+// 	}
+// }
 
 type infraResource struct {
 	env           *EnvVar
@@ -214,6 +212,17 @@ type infraResource struct {
 
 func NewInfraResource(env *EnvVar, db *sql.DB, redis *redis.Client, kafkaProd *kafka.Producer, elasticsearch *esv8.Client) *infraResource {
 	return &infraResource{env: env, db: db, redis: redis, kafkaProd: kafkaProd, elasticsearch: elasticsearch}
+}
+
+func (i *infraResource) Close() {
+	if i.db != nil {
+		slog.Info("Closing db connection")
+		i.db.Close()
+	}
+	if i.redis != nil {
+		slog.Info("Redis client connection closed")
+		i.redis.Close()
+	}
 }
 
 type storeResource struct {
