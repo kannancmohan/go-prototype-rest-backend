@@ -137,22 +137,43 @@ func initInfraResources() (*infraResource, error) {
 
 	initLogger(env) // error ignored on purpose
 
-	db, err := initDB(env)
+	//database
+	dbCfg := app_common.DBConfig{
+		Addr:         fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.DBPort, env.ApiDBName, env.DBSslMode),
+		MaxOpenConns: env.ApiDBMaxOpenConns,
+		MaxIdleConns: env.ApiDBMaxIdleConns,
+		MaxIdleTime:  env.ApiDBMaxIdleTime,
+	}
+	db, err := dbCfg.NewConnection()
 	if err != nil {
 		return nil, fmt.Errorf("Error init db: %w", err)
 	}
 
-	redis, err := initRedis(env)
+	//redis
+	redisDB, _ := strconv.Atoi(env.RedisDB)
+	redisCfg := app_common.RedisConfig{
+		Addr: env.RedisHost,
+		DB:   redisDB,
+	}
+	redis, err := redisCfg.NewConnection()
 	if err != nil {
 		return nil, fmt.Errorf("Error init redis: %w", err)
 	}
 
-	kafkaProd, err := initKafkaProducer(env)
+	//kafka
+	kafkaProdCfg := app_common.KafkaProducerConfig{
+		Addr: env.KafkaHost,
+	}
+	kafkaProd, err := kafkaProdCfg.NewKafkaProducer()
 	if err != nil {
 		return nil, fmt.Errorf("Error init kafka producer: %w", err)
 	}
 
-	es, err := initElasticSearch(env)
+	//elastic
+	esConfig := app_common.ElasticSearchConfig{
+		Addr: env.ElasticHost,
+	}
+	es, err := esConfig.NewConnection()
 	if err != nil {
 		return nil, fmt.Errorf("Error init ElasticSearch: %w", err)
 	}
@@ -174,55 +195,6 @@ func initLogger(env *EnvVar) error {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
 	slog.SetDefault(logger)
 	return nil
-}
-
-func initDB(env *EnvVar) (*sql.DB, error) {
-	dbCfg := app_common.DBConfig{
-		Addr:         fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.DBPort, env.ApiDBName, env.DBSslMode),
-		MaxOpenConns: env.ApiDBMaxOpenConns,
-		MaxIdleConns: env.ApiDBMaxIdleConns,
-		MaxIdleTime:  env.ApiDBMaxIdleTime,
-	}
-	db, err := dbCfg.NewConnection()
-	if err != nil {
-		return nil, err
-	}
-	return db, nil
-}
-
-func initRedis(env *EnvVar) (*redis.Client, error) {
-	dbi, _ := strconv.Atoi(env.RedisDB)
-	cfg := app_common.RedisConfig{
-		Addr: env.RedisHost,
-		DB:   dbi,
-	}
-	rdb, err := cfg.NewConnection()
-	if err != nil {
-		return nil, err
-	}
-	return rdb, nil
-}
-
-func initKafkaProducer(env *EnvVar) (*kafka.Producer, error) {
-	kafkaProd := app_common.KafkaProducerConfig{
-		Addr: env.KafkaHost,
-	}
-	p, err := kafkaProd.NewKafkaProducer()
-	if err != nil {
-		return nil, err
-	}
-	return p, nil
-}
-
-func initElasticSearch(env *EnvVar) (*esv8.Client, error) {
-	esConfig := app_common.ElasticSearchConfig{
-		Addr: env.ElasticHost,
-	}
-	es, err := esConfig.NewConnection()
-	if err != nil {
-		return nil, err
-	}
-	return es, nil
 }
 
 type appServer struct {
