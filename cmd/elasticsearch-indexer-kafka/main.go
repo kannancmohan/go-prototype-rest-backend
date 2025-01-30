@@ -192,7 +192,7 @@ func initElasticSearch(env *EnvVar) (*esv8.Client, error) {
 	esConfig := app_common.ElasticSearchConfig{
 		Addr: env.ElasticHost,
 	}
-	es, err := esConfig.NewElasticSearch()
+	es, err := esConfig.NewConnection()
 	if err != nil {
 		return nil, err
 	}

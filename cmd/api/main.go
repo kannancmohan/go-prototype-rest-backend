@@ -191,14 +191,13 @@ func initDB(env *EnvVar) (*sql.DB, error) {
 }
 
 func initRedis(env *EnvVar) (*redis.Client, error) {
-	host := env.RedisHost
-	db := env.RedisDB
-	dbi, _ := strconv.Atoi(db)
-	rdb := redis.NewClient(&redis.Options{
-		Addr: host,
+	dbi, _ := strconv.Atoi(env.RedisDB)
+	cfg := app_common.RedisConfig{
+		Addr: env.RedisHost,
 		DB:   dbi,
-	})
-	if _, err := rdb.Ping(context.Background()).Result(); err != nil {
+	}
+	rdb, err := cfg.NewConnection()
+	if err != nil {
 		return nil, err
 	}
 	return rdb, nil
@@ -219,11 +218,35 @@ func initElasticSearch(env *EnvVar) (*esv8.Client, error) {
 	esConfig := app_common.ElasticSearchConfig{
 		Addr: env.ElasticHost,
 	}
-	es, err := esConfig.NewElasticSearch()
+	es, err := esConfig.NewConnection()
 	if err != nil {
 		return nil, err
 	}
 	return es, nil
+}
+
+type appServer struct {
+	infra      *infraResource
+	store      storeResource
+	httpServer *http.Server
+}
+
+func NewAppServer(infra *infraResource, store storeResource) *appServer {
+	pService := service.NewPostService(store.postStore, store.msgBrokerStore, store.searchStore)
+	uService := service.NewUserService(store.userStore)
+
+	handler := handler.NewHandler(uService, pService)
+
+	router := api.NewRouter(handler, infra.env.ApiCorsAllowedOrigin)
+	routes := router.RegisterHandlers()
+	httpServer := &http.Server{
+		Addr:         infra.env.ApiAddr,
+		Handler:      routes,
+		WriteTimeout: time.Second * 30,
+		ReadTimeout:  time.Second * 10,
+		IdleTimeout:  time.Minute,
+	}
+	return &appServer{infra: infra, store: store, httpServer: httpServer}
 }
 
 type infraResource struct {
