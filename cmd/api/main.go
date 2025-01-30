@@ -30,51 +30,19 @@ import (
 )
 
 func main() {
-
-	env, err := initSecret(app_common.GetEnvNameFromCommandLine())
+	infra, err := initInfraResources()
 	if err != nil {
-		log.Fatalf("Error init secret: %s", err)
+		log.Fatalf("Error init infra resources: %s", err.Error())
 	}
 
-	initLogger(env) // error ignored on purpose
-
-	db, err := initDB(env)
+	store, err := initStoreResources(infra)
 	if err != nil {
-		log.Fatalf("Error init db: %s", err)
+		log.Fatalf("Error init store resources: %s", err.Error())
 	}
 
-	redis, err := initRedis(env)
-	if err != nil {
-		log.Fatalf("Error init redis: %s", err)
-	}
-
-	kafkaProd, err := initKafkaProducer(env)
-	if err != nil {
-		log.Fatalf("Error init kafka producer: %s", err)
-	}
-
-	es, err := initElasticSearch(env)
-	if err != nil {
-		log.Fatalf("Error init ElasticSearch: %s", err)
-	}
-
-	pStore := postgres.NewPostDBStore(db, env.ApiDBQueryTimeoutDuration)
-	uStore := postgres.NewUserDBStore(db, env.ApiDBQueryTimeoutDuration)
-	//rStore := store.NewRoleStore(db)
-
-	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(kafkaProd, env.KafkaProdTopic)
-
-	cachedPStore := redis_cache.NewPostStore(redis, pStore, env.ApiRedisCacheExpirationDuration)
-	cachedUStore := redis_cache.NewUserStore(redis, uStore, env.ApiRedisCacheExpirationDuration)
-
-	searchStore, err := elasticsearch.NewPostSearchIndexStore(es, env.ElasticIndexName)
-	if err != nil {
-		log.Fatalf("Error init PostSearchIndexStore: %s", err)
-	}
-
-	s, _ := newServer(env, cachedPStore, cachedUStore, messageBrokerStore, searchStore)
-	errC := make(chan error, 1)        //channel to capture error while start/kill application
-	handleShutdown(s, db, redis, errC) //gracefully shutting down applications in response to system signals
+	s, _ := newServer(infra.env, store.postStore, store.userStore, store.msgBrokerStore, store.searchStore)
+	errC := make(chan error, 1)                    //channel to capture error while start/kill application
+	handleShutdown(s, infra.db, infra.redis, errC) //gracefully shutting down applications in response to system signals
 	startServer(s, errC)
 	if err := <-errC; err != nil {
 		log.Fatalf("Error while running: %s", err)
@@ -144,6 +112,54 @@ func closeResources(db *sql.DB, redis *redis.Client) {
 	}
 }
 
+func initStoreResources(infra *infraResource) (storeResource, error) {
+	pStore := postgres.NewPostDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
+	uStore := postgres.NewUserDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
+	//rStore := store.NewRoleStore(db)
+
+	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(infra.kafkaProd, infra.env.KafkaProdTopic)
+
+	cachedPStore := redis_cache.NewPostStore(infra.redis, pStore, infra.env.ApiRedisCacheExpirationDuration)
+	cachedUStore := redis_cache.NewUserStore(infra.redis, uStore, infra.env.ApiRedisCacheExpirationDuration)
+
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(infra.elasticsearch, infra.env.ElasticIndexName)
+	if err != nil {
+		return storeResource{}, fmt.Errorf("Error init PostSearchIndexStore: %w", err)
+	}
+	return NewStoreResource(cachedPStore, cachedUStore, messageBrokerStore, searchStore), nil
+}
+
+func initInfraResources() (*infraResource, error) {
+	env, err := initSecret(app_common.GetEnvNameFromCommandLine())
+	if err != nil {
+		return nil, fmt.Errorf("Error init secret: %w", err)
+	}
+
+	initLogger(env) // error ignored on purpose
+
+	db, err := initDB(env)
+	if err != nil {
+		return nil, fmt.Errorf("Error init db: %w", err)
+	}
+
+	redis, err := initRedis(env)
+	if err != nil {
+		return nil, fmt.Errorf("Error init redis: %w", err)
+	}
+
+	kafkaProd, err := initKafkaProducer(env)
+	if err != nil {
+		return nil, fmt.Errorf("Error init kafka producer: %w", err)
+	}
+
+	es, err := initElasticSearch(env)
+	if err != nil {
+		return nil, fmt.Errorf("Error init ElasticSearch: %w", err)
+	}
+
+	return NewInfraResource(env, db, redis, kafkaProd, es), nil
+}
+
 func initSecret(envFileName string) (*EnvVar, error) {
 	secretStore := envvarsecret.NewSecretFetchStore(envFileName)
 	return initEnvVar(secretStore), nil
@@ -208,4 +224,27 @@ func initElasticSearch(env *EnvVar) (*esv8.Client, error) {
 		return nil, err
 	}
 	return es, nil
+}
+
+type infraResource struct {
+	env           *EnvVar
+	db            *sql.DB
+	redis         *redis.Client
+	kafkaProd     *kafka.Producer
+	elasticsearch *esv8.Client
+}
+
+func NewInfraResource(env *EnvVar, db *sql.DB, redis *redis.Client, kafkaProd *kafka.Producer, elasticsearch *esv8.Client) *infraResource {
+	return &infraResource{env: env, db: db, redis: redis, kafkaProd: kafkaProd, elasticsearch: elasticsearch}
+}
+
+type storeResource struct {
+	postStore      store.PostDBStore
+	userStore      store.UserDBStore
+	msgBrokerStore store.PostMessageBrokerStore
+	searchStore    store.PostSearchStore
+}
+
+func NewStoreResource(postStore store.PostDBStore, userStore store.UserDBStore, msgBrokerStore store.PostMessageBrokerStore, searchStore store.PostSearchStore) storeResource {
+	return storeResource{postStore: postStore, userStore: userStore, msgBrokerStore: msgBrokerStore, searchStore: searchStore}
 }
