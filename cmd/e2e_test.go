@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"reflect"
 	"slices"
@@ -21,6 +20,7 @@ import (
 	"time"
 
 	"github.com/docker/go-connections/nat"
+	"github.com/kannancmohan/go-prototype-rest-backend/cmd/api/app"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
 	"github.com/redis/go-redis/v9"
@@ -61,14 +61,11 @@ func TestMain(m *testing.M) {
 func TestUserEndpoints(t *testing.T) {
 	port, _ := testutils.GetFreePort()
 	os.Setenv("API_PORT", port)
-	apiCmd := exec.Command("go", "run", "./api/")
-	if err := apiCmd.Start(); err != nil {
-		t.Fatalf("Failed to start API service: %v", err)
-	}
 
-	defer func() {
-		if err := apiCmd.Process.Kill(); err != nil {
-			t.Logf("Failed to kill API service process: %v", err)
+	// Start the application in a goroutine
+	go func() {
+		if err := app.StartApp(""); err != nil {
+			t.Errorf("Failed to start application: %v", err)
 		}
 	}()
 
