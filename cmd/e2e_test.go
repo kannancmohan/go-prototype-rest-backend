@@ -226,7 +226,7 @@ func NewSetup(setupFuncRegistries ...*setupFuncRegistry) *setup {
 }
 
 func (s *setup) start() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
 	var setupWG sync.WaitGroup
@@ -238,7 +238,7 @@ func (s *setup) start() {
 			setupReg.addCleanupFunc(cleanup)
 			if err != nil {
 				log.Printf("Failed to start %s container: %v", name, err)
-				cancel()        // Cancel the context to stop other setup tasks
+				cancel()        // Cancel the context so as other setup could be stopped
 				close(s.errorC) // notify that there was error in setup
 				return          // return from goroutine
 			}
