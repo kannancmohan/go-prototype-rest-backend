@@ -191,17 +191,6 @@ func (a *appServer) handleShutdown(errC chan<- error) {
 	}()
 }
 
-// func closeResources(db *sql.DB, redis *redis.Client) {
-// 	if db != nil {
-// 		db.Close()
-// 		slog.Info("Database connection closed")
-// 	}
-// 	if redis != nil {
-// 		redis.Close()
-// 		slog.Info("Redis client connection closed")
-// 	}
-// }
-
 type infraResource struct {
 	env           *EnvVar
 	db            *sql.DB

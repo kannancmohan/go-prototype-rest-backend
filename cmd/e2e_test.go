@@ -24,74 +24,37 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
 	"github.com/redis/go-redis/v9"
-	"golang.org/x/exp/maps"
 )
 
 func TestMain(m *testing.M) {
-	cleanupRegistry := NewCleanupRegistry()
-
-	var setupWG sync.WaitGroup
-	setupProcessChan := make(chan string, 4)
-	setupErrChan := make(chan error, 4)         // Buffer size equals the number of services
 	interruptSigChan := make(chan os.Signal, 1) // Interrupt signal channel
-
 	go func() {
 		signal.Notify(interruptSigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
 	}()
 
-	// Helper to register setup and cleanup
-	setup := func(name string, setupFunc func() (CleanupFunc, error)) {
-		setupWG.Add(1)
-		setupProcessChan <- name
-		go func(name string, setup func() (CleanupFunc, error)) {
-			defer setupWG.Done()
-			cleanup, err := setup()
-			if cleanup != nil {
-				cleanupRegistry.register(name, cleanup)
-			}
-			if err != nil {
-				log.Printf("Failed to start %s testcontainer: %v", name, err)
-				setupErrChan <- err
-				return
-			}
-			log.Printf("Successfully started %s testconatiner", name)
-		}(name, setupFunc)
-	}
-
-	setup("postgres", setupTestPostgres)
-	setup("redis", setupTestRedis)
-	setup("elasticsearch", setupTestElasticsearch)
-	setup("kafka", setupTestKafka)
-
-	go func() {
-		setupWG.Wait()
-		close(setupProcessChan)
-	}()
+	setup := NewSetup(
+		NewSetupFuncRegistry("postgres", setupTestPostgres),
+		NewSetupFuncRegistry("redis", setupTestRedis),
+		NewSetupFuncRegistry("elasticsearch", setupTestElasticsearch),
+		NewSetupFuncRegistry("kafka", setupTestKafka),
+	)
+	go setup.start()
 
 	var exitCode int
-loop:
-	for { //infinite loop so as continuously check channels until the 'loop' is break
-		select {
-		case _, ok := <-setupProcessChan:
-			if !ok {
-				log.Println("Setup done. Executing test cases...")
-				exitCode = m.Run()
-				break loop
-			}
-
-		case <-setupErrChan:
-			log.Println("Setup failed with error")
-			exitCode = 1
-			break loop
-
-		case <-interruptSigChan:
-			log.Println("Received interrupt signal")
-			exitCode = 1
-			break loop
-		}
+	select {
+	case <-setup.doneC:
+		log.Println("Setup done. Executing test cases...")
+		exitCode = m.Run()
+	case <-setup.errorC:
+		log.Println("Setup failed with error")
+		exitCode = 1
+	case <-interruptSigChan:
+		log.Println("Received interrupt signal")
+		exitCode = 1
 	}
+
 	//TODO - handle proper cleanup on interrupt signal. i.e terminating test in middle of container creation
-	cleanupRegistry.runCleanup(context.Background())
+	setup.cleanup(context.Background())
 	os.Exit(exitCode)
 }
 
@@ -237,52 +200,77 @@ func setupTestKafka() (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
+type SetupFunc func() (CleanupFunc, error)
 type CleanupFunc func(context.Context) error
 
-type cleanupRegistry struct {
-	mu    sync.Mutex
-	funcs map[string]CleanupFunc
+type setup struct {
+	setupFuncRegistries []*setupFuncRegistry
+	doneC               chan struct{} // to signal setup has done
+	errorC              chan struct{} // to signal setup has error
 }
 
-func NewCleanupRegistry() *cleanupRegistry {
-	return &cleanupRegistry{
-		funcs: make(map[string]CleanupFunc),
-	}
+func NewSetup(setupFuncRegistries ...*setupFuncRegistry) *setup {
+	return &setup{setupFuncRegistries: setupFuncRegistries, doneC: make(chan struct{}), errorC: make(chan struct{})}
 }
 
-func (r *cleanupRegistry) register(name string, cleanup CleanupFunc) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.funcs[name] = cleanup
-}
-
-func (r *cleanupRegistry) runCleanup(ctx context.Context) {
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var cleanupErrors []error
-
-	log.Printf("Inside cleanup, containers to clean:%v", maps.Keys(r.funcs))
-
-	for name, cleanup := range r.funcs {
-		wg.Add(1)
-		go func(name string, cleanup CleanupFunc) {
-			defer wg.Done()
-			if err := cleanup(ctx); err != nil {
-				mu.Lock()
-				cleanupErrors = append(cleanupErrors, err)
-				log.Printf("Failed to cleanup %s: %v", name, err)
-				mu.Unlock()
-			} else {
-				log.Printf("Successfully cleaned up %s", name)
+func (s *setup) start() {
+	var setupWG sync.WaitGroup
+	for _, setupReg := range s.setupFuncRegistries {
+		setupWG.Add(1)
+		go func(name string, setupFunc SetupFunc) {
+			defer setupWG.Done()
+			cleanup, err := setupFunc()
+			setupReg.addCleanupFunc(cleanup)
+			if err != nil {
+				log.Printf("Failed to start %s container: %v", name, err)
+				close(s.errorC) // notify that there was error in setup
+				return          // return from goroutine
 			}
-		}(name, cleanup)
+			log.Printf("Successfully started %s container", name)
+		}(setupReg.name, setupReg.setupFunc)
 	}
+	setupWG.Wait()
+	close(s.doneC) // notify that setup has been done
+}
 
-	wg.Wait()
-
-	if len(cleanupErrors) > 0 {
-		log.Println("Cleanup completed with errors.")
+func (s *setup) cleanup(ctx context.Context) {
+	var cleanupWG sync.WaitGroup
+	for _, setupReg := range s.setupFuncRegistries {
+		cleanupWG.Add(1)
+		go func(setupReg *setupFuncRegistry) {
+			defer cleanupWG.Done()
+			if err := setupReg.invokeCleanupFunc(ctx); err != nil {
+				log.Printf("Failed to cleanup %s: %v", setupReg.name, err)
+				return // return from goroutine
+			}
+			log.Printf("Successfully cleaned up %s", setupReg.name)
+		}(setupReg)
 	}
+	cleanupWG.Wait()
+}
+
+type setupFuncRegistry struct {
+	name        string
+	setupFunc   SetupFunc
+	cleanupFunc CleanupFunc
+}
+
+func NewSetupFuncRegistry(name string, setupFunc SetupFunc) *setupFuncRegistry {
+	return &setupFuncRegistry{
+		name:      name,
+		setupFunc: setupFunc,
+	}
+}
+
+func (s *setupFuncRegistry) addCleanupFunc(cleanupFunc CleanupFunc) {
+	s.cleanupFunc = cleanupFunc
+}
+
+func (s *setupFuncRegistry) invokeCleanupFunc(ctx context.Context) error {
+	if s.cleanupFunc != nil {
+		return s.cleanupFunc(ctx)
+	}
+	return nil // No cleanup function set
 }
 
 func convertExpectedBody[T any](data any) (T, error) {
