@@ -109,7 +109,10 @@ func TestUserEndpoints(t *testing.T) {
 	}
 }
 
-func setupTestPostgres() (CleanupFunc, error) {
+func setupTestPostgres(ctx context.Context) (CleanupFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	instance := testutils.NewTestPostgresContainer("e2e_test", "test", "test")
 	container, cleanupFunc, err := instance.CreatePostgresTestContainer()
 	if err != nil {
@@ -125,7 +128,7 @@ func setupTestPostgres() (CleanupFunc, error) {
 		return cleanupFunc, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	host, err := container.Host(timeoutCtx)
@@ -147,7 +150,10 @@ func setupTestPostgres() (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestRedis() (CleanupFunc, error) {
+func setupTestRedis(ctx context.Context) (CleanupFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	instance := testutils.NewTestRedisContainer()
 	container, cleanupFunc, err := instance.CreateRedisTestContainer("")
 	if err != nil {
@@ -169,7 +175,10 @@ func setupTestRedis() (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestElasticsearch() (CleanupFunc, error) {
+func setupTestElasticsearch(ctx context.Context) (CleanupFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	instance := testutils.NewTestElasticsearchContainer()
 	container, cleanupFunc, err := instance.CreateElasticsearchTestContainer("")
 	if err != nil {
@@ -183,7 +192,10 @@ func setupTestElasticsearch() (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestKafka() (CleanupFunc, error) {
+func setupTestKafka(ctx context.Context) (CleanupFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	instance := testutils.NewTestKafkaContainer("e2e-test-kafka")
 	container, cleanupFunc, err := instance.CreateKafkaTestContainer()
 	if err != nil {
@@ -200,7 +212,7 @@ func setupTestKafka() (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-type SetupFunc func() (CleanupFunc, error)
+type SetupFunc func(context.Context) (CleanupFunc, error)
 type CleanupFunc func(context.Context) error
 
 type setup struct {
@@ -214,15 +226,19 @@ func NewSetup(setupFuncRegistries ...*setupFuncRegistry) *setup {
 }
 
 func (s *setup) start() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	var setupWG sync.WaitGroup
 	for _, setupReg := range s.setupFuncRegistries {
 		setupWG.Add(1)
 		go func(name string, setupFunc SetupFunc) {
 			defer setupWG.Done()
-			cleanup, err := setupFunc()
+			cleanup, err := setupFunc(ctx)
 			setupReg.addCleanupFunc(cleanup)
 			if err != nil {
 				log.Printf("Failed to start %s container: %v", name, err)
+				cancel()        // Cancel the context to stop other setup tasks
 				close(s.errorC) // notify that there was error in setup
 				return          // return from goroutine
 			}
@@ -234,16 +250,19 @@ func (s *setup) start() {
 }
 
 func (s *setup) cleanup(ctx context.Context) {
+	log.Print("Invoking cleanup...")
 	var cleanupWG sync.WaitGroup
 	for _, setupReg := range s.setupFuncRegistries {
 		cleanupWG.Add(1)
 		go func(setupReg *setupFuncRegistry) {
 			defer cleanupWG.Done()
-			if err := setupReg.invokeCleanupFunc(ctx); err != nil {
-				log.Printf("Failed to cleanup %s: %v", setupReg.name, err)
-				return // return from goroutine
+			if setupReg.cleanupFunc != nil {
+				if err := setupReg.cleanupFunc(ctx); err != nil {
+					log.Printf("Failed to cleanup %s: %v", setupReg.name, err)
+					return // return from goroutine
+				}
+				log.Printf("Successfully cleaned up %s", setupReg.name)
 			}
-			log.Printf("Successfully cleaned up %s", setupReg.name)
 		}(setupReg)
 	}
 	cleanupWG.Wait()
@@ -264,13 +283,6 @@ func NewSetupFuncRegistry(name string, setupFunc SetupFunc) *setupFuncRegistry {
 
 func (s *setupFuncRegistry) addCleanupFunc(cleanupFunc CleanupFunc) {
 	s.cleanupFunc = cleanupFunc
-}
-
-func (s *setupFuncRegistry) invokeCleanupFunc(ctx context.Context) error {
-	if s.cleanupFunc != nil {
-		return s.cleanupFunc(ctx)
-	}
-	return nil // No cleanup function set
 }
 
 func convertExpectedBody[T any](data any) (T, error) {
