@@ -47,7 +47,7 @@ func StartApp(envName string) error {
 func initStoreResources(infra *infraResource) (storeResource, error) {
 	searchStore, err := elasticsearch.NewPostSearchIndexStore(infra.elasticsearch, infra.env.ElasticIndexName)
 	if err != nil {
-		return storeResource{}, fmt.Errorf("Error init PostSearchIndexStore: %w", err)
+		return storeResource{}, fmt.Errorf("error init PostSearchIndexStore: %w", err)
 	}
 	return NewStoreResource(searchStore), nil
 }
@@ -74,7 +74,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 	}
 	kafkaCons, err := kafkaConsCfg.NewKafkaConsumer()
 	if err != nil {
-		return nil, fmt.Errorf("Error init kafka consumer: %w", err)
+		return nil, fmt.Errorf("error init kafka consumer: %w", err)
 	}
 
 	//elastic
@@ -83,7 +83,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 	}
 	es, err := esConfig.NewConnection()
 	if err != nil {
-		return nil, fmt.Errorf("Error init ElasticSearch: %w", err)
+		return nil, fmt.Errorf("error init ElasticSearch: %w", err)
 	}
 
 	return NewInfraResource(env, kafkaCons, es), nil
