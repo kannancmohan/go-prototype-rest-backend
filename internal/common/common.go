@@ -2,8 +2,10 @@ package common
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"runtime"
+	"strings"
 )
 
 func GetRootDir() (string, error) {
@@ -15,4 +17,16 @@ func GetRootDir() (string, error) {
 	rootDir := path.Join(path.Dir(currentFile), "../..")
 
 	return rootDir, nil
+}
+
+func GetMigrationSourcePath() string {
+	path, exists := os.LookupEnv("MIGRATIONS_PATH")
+	if exists {
+		if strings.HasPrefix(path, "file://") {
+			return path
+		}
+		return "file://" + path
+	}
+	rootDir, _ := GetRootDir()
+	return "file://" + rootDir + "/cmd/migrate/migrations"
 }

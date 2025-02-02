@@ -14,7 +14,7 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	mockstore "github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store/mocks"
 	redis_cache "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/cache/redis"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
+	tc_testutils "github.com/kannancmohan/go-prototype-rest-backend/internal/testutils/testcontainers"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/mock/gomock"
 )
@@ -23,7 +23,7 @@ var testRedisClient *redis.Client
 
 func TestMain(m *testing.M) {
 	var err error
-	pgTest := testutils.NewTestRedisContainer()
+	pgTest := tc_testutils.NewTestRedisContainer()
 	container, cleanupFunc, err := pgTest.CreateRedisTestContainer("")
 	if err != nil {
 		log.Fatalf("Failed to start TestContainer: %v", err)

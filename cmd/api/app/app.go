@@ -190,7 +190,7 @@ func (a *appServer) stop(ctx context.Context) error {
 	return nil
 }
 
-//TODO invoke this method for cleanup 
+// TODO invoke this method for cleanup
 func (a *appServer) cleanup() error {
 	a.infra.Close()
 	return nil

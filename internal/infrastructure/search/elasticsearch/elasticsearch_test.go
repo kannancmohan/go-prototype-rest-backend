@@ -14,14 +14,14 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/search/elasticsearch"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
+	tc_testutils "github.com/kannancmohan/go-prototype-rest-backend/internal/testutils/testcontainers"
 )
 
 var testESClient *esv8.Client
 
 func TestMain(m *testing.M) {
 	var err error
-	pgTest := testutils.NewTestElasticsearchContainer()
+	pgTest := tc_testutils.NewTestElasticsearchContainer()
 	container, cleanupFunc, err := pgTest.CreateElasticsearchTestContainer("")
 	if err != nil {
 		log.Fatalf("Failed to start elasticsearch TestContainer: %v", err)
