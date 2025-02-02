@@ -61,7 +61,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 	// set logger
 	err := initLogger(env)
 	if err != nil {
-		return nil, fmt.Errorf("Error init secret: %w", err)
+		return nil, fmt.Errorf("error init secret: %w", err)
 	}
 
 	//kafka
@@ -113,7 +113,7 @@ func NewAppServer(infra *infraResource, store storeResource) *appServer {
 
 func (s *appServer) start(errC chan<- error) {
 	go func() {
-		slog.Info("Listening and serving")
+		slog.Info("listening and serving..")
 		if err := s.listenAndServe(); err != nil {
 			errC <- err
 		}
@@ -186,7 +186,7 @@ func (s *appServer) listenAndServe() error {
 			}
 		}
 
-		slog.Info("No more messages to consume. Exiting.")
+		slog.Info("no more messages to consume. Exiting.")
 		s.doneC <- struct{}{}
 	}()
 
@@ -199,7 +199,7 @@ func (s *appServer) handleShutdown(errC chan<- error) {
 
 	go func() {
 		sig := <-sigChan
-		slog.Info("Shutdown signal received", "signal", sig.String())
+		slog.Info("shutdown signal received", "signal", sig.String())
 
 		timeoutCtx, timeoutCtxCancelFunc := context.WithTimeout(context.Background(), 10*time.Second)
 		defer timeoutCtxCancelFunc()
@@ -213,7 +213,7 @@ func (s *appServer) handleShutdown(errC chan<- error) {
 		case <-s.doneC:
 		}
 
-		slog.Info("Shutdown completed")
+		slog.Info("shutdown completed")
 		close(errC) // Close the error channel
 	}()
 }
@@ -229,7 +229,7 @@ func NewInfraResource(env *EnvVar, kafkaCons *kafka.Consumer, elasticsearch *esv
 }
 
 func (i *infraResource) Close() {
-	slog.Info("Closing Kafka consumer")
+	slog.Info("closing Kafka consumer")
 	i.kafkaCons.Close()
 }
 

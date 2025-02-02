@@ -8,9 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
@@ -28,29 +26,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func StartApp(envName string) error {
-	infra, err := initInfraResources(envName)
-	if err != nil {
-		return fmt.Errorf("error initializing infra resources: %w", err)
-	}
-	defer infra.Close() // Ensure resources are closed when main exits
-
-	store, err := initStoreResources(infra)
-	if err != nil {
-		return fmt.Errorf("error initializing store resources: %w", err)
-	}
-
-	app := NewAppServer(infra, store)
-	errC := make(chan error, 1) //channel to capture error while start/kill application
-	app.handleShutdown(errC)
-	app.start(errC)
-
-	if err := <-errC; err != nil {
-		return fmt.Errorf("error while running the application: %w", err)
-	}
-	return nil
-}
-
 func initStoreResources(infra *infraResource) (storeResource, error) {
 	pStore := postgres.NewPostDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
 	uStore := postgres.NewUserDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
@@ -63,13 +38,14 @@ func initStoreResources(infra *infraResource) (storeResource, error) {
 
 	searchStore, err := elasticsearch.NewPostSearchIndexStore(infra.elasticsearch, infra.env.ElasticIndexName)
 	if err != nil {
-		return storeResource{}, fmt.Errorf("Error init PostSearchIndexStore: %w", err)
+		return storeResource{}, fmt.Errorf("error init PostSearchIndexStore: %w", err)
 	}
 	return NewStoreResource(cachedPStore, cachedUStore, messageBrokerStore, searchStore), nil
 }
 
 func initInfraResources(envName string) (*infraResource, error) {
 
+	//TODO run the following processes in goroutine
 	//get secrets
 	secretStore := envvarsecret.NewSecretFetchStore(envName)
 	env := initEnvVar(secretStore)
@@ -77,7 +53,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 	// set logger
 	err := initLogger(env)
 	if err != nil {
-		return nil, fmt.Errorf("Error init secret: %w", err)
+		return nil, fmt.Errorf("error init secret: %w", err)
 	}
 
 	//database
@@ -89,7 +65,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 	}
 	db, err := dbCfg.NewConnection()
 	if err != nil {
-		return nil, fmt.Errorf("Error init db: %w", err)
+		return nil, fmt.Errorf("error init db: %w", err)
 	}
 
 	//redis
@@ -100,7 +76,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 	}
 	redis, err := redisCfg.NewConnection()
 	if err != nil {
-		return nil, fmt.Errorf("Error init redis: %w", err)
+		return nil, fmt.Errorf("error init redis: %w", err)
 	}
 
 	//kafka
@@ -109,7 +85,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 	}
 	kafkaProd, err := kafkaProdCfg.NewKafkaProducer()
 	if err != nil {
-		return nil, fmt.Errorf("Error init kafka producer: %w", err)
+		return nil, fmt.Errorf("error init kafka producer: %w", err)
 	}
 
 	//elastic
@@ -118,7 +94,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 	}
 	es, err := esConfig.NewConnection()
 	if err != nil {
-		return nil, fmt.Errorf("Error init ElasticSearch: %w", err)
+		return nil, fmt.Errorf("error init ElasticSearch: %w", err)
 	}
 
 	return NewInfraResource(env, db, redis, kafkaProd, es), nil
@@ -136,12 +112,24 @@ func initLogger(env *EnvVar) error {
 }
 
 type appServer struct {
-	infra      *infraResource
-	store      storeResource
-	httpServer *http.Server
+	name        string
+	appStopChan app_common.AppStopChan // used for signalling app shutdown
+	infra       *infraResource
+	store       storeResource
+	httpServer  *http.Server
 }
 
-func NewAppServer(infra *infraResource, store storeResource) *appServer {
+func NewAppServer(envName string) (*appServer, error) {
+	infra, err := initInfraResources(envName)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing infra resources: %w", err)
+	}
+	//defer infra.Close() // Ensure resources are closed when main exits
+
+	store, err := initStoreResources(infra)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing store resources: %w", err)
+	}
 	pService := service.NewPostService(store.postStore, store.msgBrokerStore, store.searchStore)
 	uService := service.NewUserService(store.userStore)
 
@@ -156,39 +144,56 @@ func NewAppServer(infra *infraResource, store storeResource) *appServer {
 		ReadTimeout:  time.Second * 10,
 		IdleTimeout:  time.Minute,
 	}
-	return &appServer{infra: infra, store: store, httpServer: httpServer}
+	return &appServer{name: "api", appStopChan: make(chan struct{}), infra: infra, store: store, httpServer: httpServer}, nil
 }
 
-func (a *appServer) start(errC chan<- error) {
+func (a *appServer) ListenForStopChannels(stopChannels ...app_common.StopChan) {
 	go func() {
-		slog.Info(fmt.Sprintf("Listening on host: %s", a.httpServer.Addr))
+		<-app_common.WaitForStopChan(context.Background(), stopChannels)
+		slog.Debug("external stop signal received in ListenForStopSignals")
+		//TODO check usage of a.appStopChan <- struct{}{} instead of close(a.appStopChan)
+		close(a.appStopChan) // send app stop signal
+	}()
+}
+
+func (a *appServer) Start() error {
+	serverStartErrChan := make(chan error, 1) // Capture errors from HTTP server or shutdown
+	go func() {
+		slog.Info(fmt.Sprintf("app listening on host: %s", a.httpServer.Addr))
 		// After Shutdown or Close, the returned error is ErrServerClosed
 		if err := a.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errC <- err
+			serverStartErrChan <- err
 		}
 	}()
+
+	select {
+	case <-a.appStopChan: // on receiving app stop signal, gracefully shut down the server
+		slog.Info("stop signal received, shutting down server...")
+		return a.stop(context.Background())
+	case err := <-serverStartErrChan: // If the server start fails for some reason
+		slog.Info("server start error, stopping server(if started)..")
+		a.stop(context.Background())
+		return fmt.Errorf("server start error: %w", err)
+	}
 }
 
-func (a *appServer) handleShutdown(errC chan<- error) {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
+func (a *appServer) stop(ctx context.Context) error {
+	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
-	go func() {
-		sig := <-sigChan
-		slog.Info("Shutdown signal received", "signal", sig.String())
+	a.httpServer.SetKeepAlivesEnabled(false)
+	if err := a.httpServer.Shutdown(timeoutCtx); err != nil {
+		slog.Error("server shutdown error", "error", err)
+		return fmt.Errorf("server shutdown error: %w", err)
+	}
+	slog.Info("server gracefully stopped")
+	return nil
+}
 
-		ctxTimeout, ctxCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer ctxCancel()
-
-		// Shutdown the server
-		a.httpServer.SetKeepAlivesEnabled(false)
-		if err := a.httpServer.Shutdown(ctxTimeout); err != nil {
-			errC <- err //log shutdown error if any
-		}
-
-		slog.Info("Shutdown completed")
-		close(errC) // Close the error channel
-	}()
+//TODO invoke this method for cleanup 
+func (a *appServer) cleanup() error {
+	a.infra.Close()
+	return nil
 }
 
 type infraResource struct {
