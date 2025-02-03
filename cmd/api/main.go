@@ -10,6 +10,6 @@ import (
 func main() {
 	err := api_app.ListenAndServe(app_common.GetEnvNameFromCommandLine(), app_common.SysInterruptStopChan())
 	if err != nil {
-		log.Fatalf("Error starting app server: %s", err.Error())
+		log.Fatalf("Error starting aoi app: %s", err.Error())
 	}
 }
