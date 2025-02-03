@@ -1,12 +1,12 @@
 # go-prototype-rest-backend
-A rest backend app build using golang.
+A rest and search-indexer backend app build using golang.
 
 ![High Level arch diagram](./docs/images/go_rest_backend_app_arch.jpg "GO rest application")
 
 ## Tech Stack 
 | Item                                       | version  | desc                                                |
 | :----------------------------------------- | :------: | --------------------------------------------------: |
-| golang                                     |   1.22   |                                                     |
+| golang                                     |   1.23   |                                                     |
 | http router - chi                          |          | github.com/go-chi/chi/v5                            |
 | redis client - go-redis                    |          | github.com/redis/go-redis/v9                        |
 | kafka client - confluent-kafka-go          |          | github.com/confluentinc/confluent-kafka-go/v2/kafka |
@@ -18,75 +18,112 @@ A rest backend app build using golang.
 ```
 rest-backend
 ├── cmd
-│   ├── api
-│   │   ├── envvar.go
-│   │   └── main.go
-│   ├── elasticsearch-indexer-kafka
-│   │   ├── envvar.go
-│   │   └── main.go
-│   ├── internal
-│   │   └── common
-│   │       ├── db.go
-│   │       ├── elasticsearch.go
-│   │       ├── env.go
-│   │       └── kafka.go
-│   └── migrate
-│       └── migrations
+│   ├── api
+│   │   ├── app
+│   │   │   ├── app.go
+│   │   │   └── envvar.go
+│   │   └── main.go
+│   ├── elasticsearch-indexer-kafka
+│   │   ├── app
+│   │   │   ├── app.go
+│   │   │   └── envvar.go
+│   │   └── main.go
+│   ├── internal
+│   │   └── common
+│   │       ├── appcommon.go
+│   │       ├── db.go
+│   │       ├── elasticsearch.go
+│   │       ├── env.go
+│   │       ├── kafka.go
+│   │       └── redis.go
+│   ├── e2e_test.go
+│   ├── e2e_testdata
+│   │   ├── posts
+│   │   │   └── test_case_prerequisites.json
+│   │   └── user
+│   │       ├── test_case_create_user.json
+│   │       ├── test_case_delete_user.json
+│   │       ├── test_case_get_user.json
+│   │       └── test_case_update_user.json
+│   └── migrate
+│       └── migrations
 ├── devops
-│   ├── docker
-│   ├── helm
-│   └── scripts
+│   ├── docker
+│   ├── helm
+│   └── scripts
 ├── docs
 ├── internal
-│   ├── api
-│   │   ├── dto
-│   │   │   ├── post.go
-│   │   │   └── user.go
-│   │   ├── handler
-│   │   │   ├── handlers.go
-│   │   │   ├── posts.go
-│   │   │   └── users.go
-│   │   ├── router.go
-│   │   └── service
-│   │       ├── posts.go
-│   │       └── user.go
-│   ├── common
-│   │   ├── common.go
-│   │   ├── domain
-│   │   │   ├── model
-│   │   │   │   ├── post.go
-│   │   │   │   └── user.go
-│   │   │   └── store
-│   │   │       ├── db.go
-│   │   │       ├── messagebroker.go
-│   │   │       └── search.go
-│   │   └── error.go
-│   ├── infrastructure
-│   │   ├── cache
-│   │   │   └── redis
-│   │   │       ├── posts.go
-│   │   │       ├── roles.go
-│   │   │       └── users.go
-│   │   ├── db
-│   │   │   └── postgres
-│   │   │       ├── postgres.go
-│   │   │       ├── postgres_test.go
-│   │   │       ├── posts.go
-│   │   │       ├── roles.go
-│   │   │       └── users.go
-│   │   ├── messagebroker
-│   │   │   └── kafka
-│   │   │       └── post.go
-│   │   └── search
-│   │       └── elasticsearch
-│   │           └── post.go
-│   └── testutils
-│       └── testcontainers_db.go
+│   ├── api
+│   │   ├── dto
+│   │   │   ├── posts_dto.go
+│   │   │   └── user_dto.go
+│   │   ├── handler
+│   │   │   ├── handlers.go
+│   │   │   ├── posts_handler.go
+│   │   │   ├── posts_handler_test.go
+│   │   │   ├── users_handler.go
+│   │   │   └── users_handler_test.go
+│   │   ├── router.go
+│   │   └── service
+│   │       ├── mocks
+│   │       │   ├── mock_posts_service.go
+│   │       │   └── mock_user_service.go
+│   │       ├── posts_service.go
+│   │       ├── posts_service_test.go
+│   │       ├── user_service.go
+│   │       └── user_service_test.go
+│   ├── common
+│   │   ├── common.go
+│   │   ├── domain
+│   │   │   ├── model
+│   │   │   │   ├── post.go
+│   │   │   │   └── user.go
+│   │   │   └── store
+│   │   │       ├── db.go
+│   │   │       ├── messagebroker.go
+│   │   │       ├── mocks
+│   │   │       ├── search.go
+│   │   │       └── secret.go
+│   │   └── error.go
+│   ├── infrastructure
+│   │   ├── cache
+│   │   │   └── redis
+│   │   │       ├── posts.go
+│   │   │       ├── redis_test.go
+│   │   │       ├── roles.go
+│   │   │       └── users.go
+│   │   ├── db
+│   │   │   └── postgres
+│   │   │       ├── postgres.go
+│   │   │       ├── postgres_test.go
+│   │   │       ├── posts.go
+│   │   │       ├── roles.go
+│   │   │       └── users.go
+│   │   ├── messagebroker
+│   │   │   └── kafka
+│   │   │       ├── kafka_test.go
+│   │   │       └── post.go
+│   │   ├── search
+│   │   │   └── elasticsearch
+│   │   │       ├── elasticsearch_test.go
+│   │   │       └── post.go
+│   │   └── secret
+│   │       └── envvarsecret
+│   │           └── envvarsecret.go
+│   └── testutils
+│       ├── e2e_testutils.go
+│       ├── testcontainers
+│       │   ├── testcontainers_db.go
+│       │   ├── testcontainers_elasticsearch.go
+│       │   ├── testcontainers_kafka.go
+│       │   └── testcontainers_redis.go
+│       ├── testfixtures_http.go
+│       └── testutils.go
+├── docker-compose-dev-instance.yml
 ├── go.mod
 ├── go.sum
 ├── Makefile
 ├── README.md
-├── docker-compose-dev-instance.yml
 └── shell.nix
 ```
 ## Project setup 
