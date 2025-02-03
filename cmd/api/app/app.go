@@ -185,7 +185,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 		MaxIdleConns: env.ApiDBMaxIdleConns,
 		MaxIdleTime:  env.ApiDBMaxIdleTime,
 	}
-	db, err := dbCfg.NewConnection()
+	db, err := dbCfg.NewConnection(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error init db: %w", err)
 	}
@@ -196,7 +196,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 		Addr: env.RedisHost,
 		DB:   redisDB,
 	}
-	redis, err := redisCfg.NewConnection()
+	redis, err := redisCfg.NewConnection(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error init redis: %w", err)
 	}

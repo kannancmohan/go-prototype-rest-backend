@@ -3,20 +3,43 @@ package common
 import (
 	"fmt"
 	"os"
-	"path"
-	"runtime"
+	"path/filepath"
 	"strings"
+	"sync"
 )
 
-func GetRootDir() (string, error) {
-	//TODO replace this logic
-	_, currentFile, _, ok := runtime.Caller(1) // 1 for the calling function
-	if !ok {
-		return "", fmt.Errorf("unable to determine caller info")
-	}
-	rootDir := path.Join(path.Dir(currentFile), "../..")
+var (
+	projectRoot     string
+	projectRootOnce sync.Once
+)
 
-	return rootDir, nil
+func GetProjectRoot() (string, error) {
+	var err error
+
+	projectRootOnce.Do(func() {
+		dir, e := os.Getwd() // Get the current working directory
+		if e != nil {
+			err = e
+			return
+		}
+
+		for { // Traverse up the directory tree until we find go.mod
+			if _, e := os.Stat(filepath.Join(dir, "go.mod")); e == nil { // Check for the existence of go.mod
+				projectRoot = dir
+				return
+			}
+
+			parentDir := filepath.Dir(dir) // Move up one directory
+			if parentDir == dir {          // Reached the root of the filesystem
+				err = fmt.Errorf("project root not found")
+				return
+			}
+
+			dir = parentDir
+		}
+	})
+
+	return projectRoot, err
 }
 
 func GetMigrationSourcePath() string {
@@ -27,6 +50,6 @@ func GetMigrationSourcePath() string {
 		}
 		return "file://" + path
 	}
-	rootDir, _ := GetRootDir()
+	rootDir, _ := GetProjectRoot()
 	return "file://" + rootDir + "/cmd/migrate/migrations"
 }

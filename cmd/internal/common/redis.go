@@ -12,13 +12,13 @@ type RedisConfig struct {
 	DB   int
 }
 
-func (d *RedisConfig) NewConnection() (*redis.Client, error) {
+func (d *RedisConfig) NewConnection(ctx context.Context) (*redis.Client, error) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr: d.Addr,
 		DB:   d.DB,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	if _, err := rdb.Ping(ctx).Result(); err != nil {
