@@ -10,68 +10,60 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"reflect"
 	"slices"
 	"strconv"
-	"sync"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/docker/go-connections/nat"
-	"github.com/kannancmohan/go-prototype-rest-backend/cmd/api/app"
+	api_app "github.com/kannancmohan/go-prototype-rest-backend/cmd/api/app"
+	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
+	tc_testutils "github.com/kannancmohan/go-prototype-rest-backend/internal/testutils/testcontainers"
 	"github.com/redis/go-redis/v9"
 )
 
-func TestMain(m *testing.M) {
-	interruptSigChan := make(chan os.Signal, 1) // Interrupt signal channel
-	go func() {
-		signal.Notify(interruptSigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-	}()
+var (
+	serverAddr string
+)
 
-	setup := NewSetup(
-		NewSetupFuncRegistry("postgres", setupTestPostgres),
-		NewSetupFuncRegistry("redis", setupTestRedis),
-		NewSetupFuncRegistry("elasticsearch", setupTestElasticsearch),
-		NewSetupFuncRegistry("kafka", setupTestKafka),
+func TestMain(m *testing.M) {
+	sysStopChan := app_common.SysInterruptStopChan()
+
+	setup := testutils.NewInfraSetup(
+		testutils.NewInfraSetupFuncRegistry("postgres", setupTestPostgres),
+		testutils.NewInfraSetupFuncRegistry("redis", setupTestRedis),
+		testutils.NewInfraSetupFuncRegistry("elasticsearch", setupTestElasticsearch),
+		testutils.NewInfraSetupFuncRegistry("kafka", setupTestKafka),
 	)
-	go setup.start()
+	go setup.Start()
 
 	var exitCode int
 	select {
-	case <-setup.doneC:
-		log.Println("Setup done. Executing test cases...")
-		exitCode = m.Run()
-	case <-setup.errorC:
+	case <-setup.SetupDoneChan:
+		if err := initApp(sysStopChan); err != nil {
+			log.Printf("App init failed with error:%s", err.Error())
+			exitCode = 1
+		} else {
+			log.Println("Setup and App init done, executing test cases..")
+			exitCode = m.Run()
+		}
+	case <-setup.SetupErrChan:
 		log.Println("Setup failed with error")
 		exitCode = 1
-	case <-interruptSigChan:
+	case <-sysStopChan:
 		log.Println("Received interrupt signal")
 		exitCode = 1
 	}
 
 	//TODO - handle proper cleanup on interrupt signal. i.e terminating test in middle of container creation
-	setup.cleanup(context.Background())
+	setup.Cleanup(context.Background())
 	os.Exit(exitCode)
 }
 
 func TestUserEndpoints(t *testing.T) {
-	port, _ := testutils.GetFreePort()
-	os.Setenv("API_PORT", port)
-
-	// Start the application in a goroutine
-	go func() {
-		if err := app.StartApp(""); err != nil {
-			t.Errorf("Failed to start application: %v", err)
-		}
-	}()
-
-	if err := testutils.WaitForPort(port, 10*time.Second); err != nil {
-		t.Fatalf("Server did not start: %v", err)
-	}
 
 	createTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_create_user.json")
 	if err != nil {
@@ -91,7 +83,6 @@ func TestUserEndpoints(t *testing.T) {
 	}
 	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
 
-	serverAddr := fmt.Sprintf("http://localhost:%s", port)
 	client := &http.Client{}
 
 	for _, tc := range testcases {
@@ -106,11 +97,11 @@ func TestUserEndpoints(t *testing.T) {
 	}
 }
 
-func setupTestPostgres(ctx context.Context) (CleanupFunc, error) {
+func setupTestPostgres(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	instance := testutils.NewTestPostgresContainer("e2e_test", "test", "test")
+	instance := tc_testutils.NewTestPostgresContainer("e2e_test", "test", "test")
 	container, cleanupFunc, err := instance.CreatePostgresTestContainer()
 	if err != nil {
 		return cleanupFunc, err
@@ -121,7 +112,7 @@ func setupTestPostgres(ctx context.Context) (CleanupFunc, error) {
 		return cleanupFunc, err
 	}
 
-	if err := testutils.ApplyDBMigrations(db); err != nil {
+	if err := tc_testutils.ApplyDBMigrations(db); err != nil {
 		return cleanupFunc, err
 	}
 
@@ -147,11 +138,11 @@ func setupTestPostgres(ctx context.Context) (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestRedis(ctx context.Context) (CleanupFunc, error) {
+func setupTestRedis(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	instance := testutils.NewTestRedisContainer()
+	instance := tc_testutils.NewTestRedisContainer()
 	container, cleanupFunc, err := instance.CreateRedisTestContainer("")
 	if err != nil {
 		return cleanupFunc, err
@@ -172,11 +163,11 @@ func setupTestRedis(ctx context.Context) (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestElasticsearch(ctx context.Context) (CleanupFunc, error) {
+func setupTestElasticsearch(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	instance := testutils.NewTestElasticsearchContainer()
+	instance := tc_testutils.NewTestElasticsearchContainer()
 	container, cleanupFunc, err := instance.CreateElasticsearchTestContainer("")
 	if err != nil {
 		return cleanupFunc, err
@@ -189,11 +180,11 @@ func setupTestElasticsearch(ctx context.Context) (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestKafka(ctx context.Context) (CleanupFunc, error) {
+func setupTestKafka(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	instance := testutils.NewTestKafkaContainer("e2e-test-kafka")
+	instance := tc_testutils.NewTestKafkaContainer("e2e-test-kafka")
 	container, cleanupFunc, err := instance.CreateKafkaTestContainer()
 	if err != nil {
 		return cleanupFunc, err
@@ -207,79 +198,6 @@ func setupTestKafka(ctx context.Context) (CleanupFunc, error) {
 	os.Setenv("KAFKA_HOST", addr)
 	os.Setenv("API_KAFKA_TOPIC", "e2e_test_posts")
 	return cleanupFunc, nil
-}
-
-type SetupFunc func(context.Context) (CleanupFunc, error)
-type CleanupFunc func(context.Context) error
-
-type setup struct {
-	setupFuncRegistries []*setupFuncRegistry
-	doneC               chan struct{} // to signal setup has done
-	errorC              chan struct{} // to signal setup has error
-}
-
-func NewSetup(setupFuncRegistries ...*setupFuncRegistry) *setup {
-	return &setup{setupFuncRegistries: setupFuncRegistries, doneC: make(chan struct{}), errorC: make(chan struct{})}
-}
-
-func (s *setup) start() {
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
-	defer cancel()
-
-	var setupWG sync.WaitGroup
-	for _, setupReg := range s.setupFuncRegistries {
-		setupWG.Add(1)
-		go func(name string, setupFunc SetupFunc) {
-			defer setupWG.Done()
-			cleanup, err := setupFunc(ctx)
-			setupReg.addCleanupFunc(cleanup)
-			if err != nil {
-				log.Printf("Failed to start %s container: %v", name, err)
-				cancel()        // Cancel the context so as other setup could be stopped
-				close(s.errorC) // notify that there was error in setup
-				return          // return from goroutine
-			}
-			log.Printf("Successfully started %s container", name)
-		}(setupReg.name, setupReg.setupFunc)
-	}
-	setupWG.Wait()
-	close(s.doneC) // notify that setup has been done
-}
-
-func (s *setup) cleanup(ctx context.Context) {
-	log.Print("Invoking cleanup...")
-	var cleanupWG sync.WaitGroup
-	for _, setupReg := range s.setupFuncRegistries {
-		cleanupWG.Add(1)
-		go func(setupReg *setupFuncRegistry) {
-			defer cleanupWG.Done()
-			if setupReg.cleanupFunc != nil {
-				if err := setupReg.cleanupFunc(ctx); err != nil {
-					log.Printf("Failed to cleanup %s: %v", setupReg.name, err)
-					return // return from goroutine
-				}
-				log.Printf("Successfully cleaned up %s", setupReg.name)
-			}
-		}(setupReg)
-	}
-	cleanupWG.Wait()
-}
-
-type setupFuncRegistry struct {
-	name        string
-	setupFunc   SetupFunc
-	cleanupFunc CleanupFunc
-}
-
-func NewSetupFuncRegistry(name string, setupFunc SetupFunc) *setupFuncRegistry {
-	return &setupFuncRegistry{
-		name:      name,
-		setupFunc: setupFunc,
-	}
-}
-
-func (s *setupFuncRegistry) addCleanupFunc(cleanupFunc CleanupFunc) {
-	s.cleanupFunc = cleanupFunc
 }
 
 func convertExpectedBody[T any](data any) (T, error) {
@@ -347,5 +265,37 @@ func compareTestUser(expected, actual model.User) error {
 	if actual.ID < 1 || isUserNameInvalid || isEmailInvalid {
 		return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
 	}
+	return nil
+}
+
+func initApp(stopChan ...app_common.StopChan) error {
+	port, err := testutils.GetFreePort()
+	if err != nil {
+		return fmt.Errorf("failed to get a free port: %w", err)
+	}
+	os.Setenv("API_PORT", port)
+
+	// Start the application in a goroutine
+	errChan := make(chan error, 2)
+	go func() {
+		err := api_app.ListenAndServe("", stopChan...)
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}()
+	go func() {
+		if err := testutils.WaitForPort(port, 10*time.Second); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+
+	err = <-errChan // block until errChan is triggered
+	if err != nil {
+		return err
+	}
+
+	serverAddr = fmt.Sprintf("http://localhost:%s", port)
 	return nil
 }
