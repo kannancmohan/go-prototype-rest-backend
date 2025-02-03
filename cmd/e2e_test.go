@@ -10,108 +10,60 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"os/signal"
 	"reflect"
 	"slices"
 	"strconv"
-	"sync"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/docker/go-connections/nat"
+	api_app "github.com/kannancmohan/go-prototype-rest-backend/cmd/api/app"
+	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
+	tc_testutils "github.com/kannancmohan/go-prototype-rest-backend/internal/testutils/testcontainers"
 	"github.com/redis/go-redis/v9"
-	"golang.org/x/exp/maps"
+)
+
+var (
+	serverAddr string
 )
 
 func TestMain(m *testing.M) {
-	cleanupRegistry := NewCleanupRegistry()
+	sysStopChan := app_common.SysInterruptStopChan()
 
-	var setupWG sync.WaitGroup
-	setupProcessChan := make(chan string, 4)
-	setupErrChan := make(chan error, 4)         // Buffer size equals the number of services
-	interruptSigChan := make(chan os.Signal, 1) // Interrupt signal channel
-
-	go func() {
-		signal.Notify(interruptSigChan, syscall.SIGINT, os.Interrupt, syscall.SIGTERM, syscall.SIGQUIT)
-	}()
-
-	// Helper to register setup and cleanup
-	setup := func(name string, setupFunc func() (CleanupFunc, error)) {
-		setupWG.Add(1)
-		setupProcessChan <- name
-		go func(name string, setup func() (CleanupFunc, error)) {
-			defer setupWG.Done()
-			cleanup, err := setup()
-			if cleanup != nil {
-				cleanupRegistry.register(name, cleanup)
-			}
-			if err != nil {
-				log.Printf("Failed to start %s testcontainer: %v", name, err)
-				setupErrChan <- err
-				return
-			}
-			log.Printf("Successfully started %s testconatiner", name)
-		}(name, setupFunc)
-	}
-
-	setup("postgres", setupTestPostgres)
-	setup("redis", setupTestRedis)
-	setup("elasticsearch", setupTestElasticsearch)
-	setup("kafka", setupTestKafka)
-
-	go func() {
-		setupWG.Wait()
-		close(setupProcessChan)
-	}()
+	setup := testutils.NewInfraSetup(
+		testutils.NewInfraSetupFuncRegistry("postgres", setupTestPostgres),
+		testutils.NewInfraSetupFuncRegistry("redis", setupTestRedis),
+		testutils.NewInfraSetupFuncRegistry("elasticsearch", setupTestElasticsearch),
+		testutils.NewInfraSetupFuncRegistry("kafka", setupTestKafka),
+	)
+	go setup.Start()
 
 	var exitCode int
-loop:
-	for { //infinite loop so as continuously check channels until the 'loop' is break
-		select {
-		case _, ok := <-setupProcessChan:
-			if !ok {
-				log.Println("Setup done. Executing test cases...")
-				exitCode = m.Run()
-				break loop
-			}
-
-		case <-setupErrChan:
-			log.Println("Setup failed with error")
+	select {
+	case <-setup.SetupDoneChan:
+		if err := initApp(sysStopChan); err != nil {
+			log.Printf("App init failed with error:%s", err.Error())
 			exitCode = 1
-			break loop
-
-		case <-interruptSigChan:
-			log.Println("Received interrupt signal")
-			exitCode = 1
-			break loop
+		} else {
+			log.Println("Setup and App init done, executing test cases..")
+			exitCode = m.Run()
 		}
+	case <-setup.SetupErrChan:
+		log.Println("Setup failed with error")
+		exitCode = 1
+	case <-sysStopChan:
+		log.Println("Received interrupt signal")
+		exitCode = 1
 	}
+
 	//TODO - handle proper cleanup on interrupt signal. i.e terminating test in middle of container creation
-	cleanupRegistry.runCleanup(context.Background())
+	setup.Cleanup(context.Background())
 	os.Exit(exitCode)
 }
 
 func TestUserEndpoints(t *testing.T) {
-	port, _ := testutils.GetFreePort()
-	os.Setenv("API_PORT", port)
-	apiCmd := exec.Command("go", "run", "./api/")
-	if err := apiCmd.Start(); err != nil {
-		t.Fatalf("Failed to start API service: %v", err)
-	}
-
-	defer func() {
-		if err := apiCmd.Process.Kill(); err != nil {
-			t.Logf("Failed to kill API service process: %v", err)
-		}
-	}()
-
-	if err := testutils.WaitForPort(port, 10*time.Second); err != nil {
-		t.Fatalf("Server did not start: %v", err)
-	}
 
 	createTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_create_user.json")
 	if err != nil {
@@ -131,7 +83,6 @@ func TestUserEndpoints(t *testing.T) {
 	}
 	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
 
-	serverAddr := fmt.Sprintf("http://localhost:%s", port)
 	client := &http.Client{}
 
 	for _, tc := range testcases {
@@ -146,8 +97,11 @@ func TestUserEndpoints(t *testing.T) {
 	}
 }
 
-func setupTestPostgres() (CleanupFunc, error) {
-	instance := testutils.NewTestPostgresContainer("e2e_test", "test", "test")
+func setupTestPostgres(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	instance := tc_testutils.NewTestPostgresContainer("e2e_test", "test", "test")
 	container, cleanupFunc, err := instance.CreatePostgresTestContainer()
 	if err != nil {
 		return cleanupFunc, err
@@ -158,11 +112,11 @@ func setupTestPostgres() (CleanupFunc, error) {
 		return cleanupFunc, err
 	}
 
-	if err := testutils.ApplyDBMigrations(db); err != nil {
+	if err := tc_testutils.ApplyDBMigrations(db); err != nil {
 		return cleanupFunc, err
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	host, err := container.Host(timeoutCtx)
@@ -184,8 +138,11 @@ func setupTestPostgres() (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestRedis() (CleanupFunc, error) {
-	instance := testutils.NewTestRedisContainer()
+func setupTestRedis(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	instance := tc_testutils.NewTestRedisContainer()
 	container, cleanupFunc, err := instance.CreateRedisTestContainer("")
 	if err != nil {
 		return cleanupFunc, err
@@ -206,8 +163,11 @@ func setupTestRedis() (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestElasticsearch() (CleanupFunc, error) {
-	instance := testutils.NewTestElasticsearchContainer()
+func setupTestElasticsearch(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	instance := tc_testutils.NewTestElasticsearchContainer()
 	container, cleanupFunc, err := instance.CreateElasticsearchTestContainer("")
 	if err != nil {
 		return cleanupFunc, err
@@ -220,8 +180,11 @@ func setupTestElasticsearch() (CleanupFunc, error) {
 	return cleanupFunc, nil
 }
 
-func setupTestKafka() (CleanupFunc, error) {
-	instance := testutils.NewTestKafkaContainer("e2e-test-kafka")
+func setupTestKafka(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	instance := tc_testutils.NewTestKafkaContainer("e2e-test-kafka")
 	container, cleanupFunc, err := instance.CreateKafkaTestContainer()
 	if err != nil {
 		return cleanupFunc, err
@@ -235,54 +198,6 @@ func setupTestKafka() (CleanupFunc, error) {
 	os.Setenv("KAFKA_HOST", addr)
 	os.Setenv("API_KAFKA_TOPIC", "e2e_test_posts")
 	return cleanupFunc, nil
-}
-
-type CleanupFunc func(context.Context) error
-
-type cleanupRegistry struct {
-	mu    sync.Mutex
-	funcs map[string]CleanupFunc
-}
-
-func NewCleanupRegistry() *cleanupRegistry {
-	return &cleanupRegistry{
-		funcs: make(map[string]CleanupFunc),
-	}
-}
-
-func (r *cleanupRegistry) register(name string, cleanup CleanupFunc) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.funcs[name] = cleanup
-}
-
-func (r *cleanupRegistry) runCleanup(ctx context.Context) {
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var cleanupErrors []error
-
-	log.Printf("Inside cleanup, containers to clean:%v", maps.Keys(r.funcs))
-
-	for name, cleanup := range r.funcs {
-		wg.Add(1)
-		go func(name string, cleanup CleanupFunc) {
-			defer wg.Done()
-			if err := cleanup(ctx); err != nil {
-				mu.Lock()
-				cleanupErrors = append(cleanupErrors, err)
-				log.Printf("Failed to cleanup %s: %v", name, err)
-				mu.Unlock()
-			} else {
-				log.Printf("Successfully cleaned up %s", name)
-			}
-		}(name, cleanup)
-	}
-
-	wg.Wait()
-
-	if len(cleanupErrors) > 0 {
-		log.Println("Cleanup completed with errors.")
-	}
 }
 
 func convertExpectedBody[T any](data any) (T, error) {
@@ -350,5 +265,37 @@ func compareTestUser(expected, actual model.User) error {
 	if actual.ID < 1 || isUserNameInvalid || isEmailInvalid {
 		return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
 	}
+	return nil
+}
+
+func initApp(stopChan ...app_common.StopChan) error {
+	port, err := testutils.GetFreePort()
+	if err != nil {
+		return fmt.Errorf("failed to get a free port: %w", err)
+	}
+	os.Setenv("API_PORT", port)
+
+	// Start the application in a goroutine
+	errChan := make(chan error, 2)
+	go func() {
+		err := api_app.ListenAndServe("", stopChan...)
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}()
+	go func() {
+		if err := testutils.WaitForPort(port, 10*time.Second); err != nil {
+			errChan <- err
+		}
+		close(errChan)
+	}()
+
+	err = <-errChan // block until errChan is triggered
+	if err != nil {
+		return err
+	}
+
+	serverAddr = fmt.Sprintf("http://localhost:%s", port)
 	return nil
 }

@@ -13,14 +13,14 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/db/postgres"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
+	tc_testutils "github.com/kannancmohan/go-prototype-rest-backend/internal/testutils/testcontainers"
 )
 
 var testDB *sql.DB
 
 func TestMain(m *testing.M) {
 	var err error
-	pgTest := testutils.NewTestPostgresContainer("testpg", "test", "test")
+	pgTest := tc_testutils.NewTestPostgresContainer("testpg", "test", "test")
 	container, cleanupFunc, err := pgTest.CreatePostgresTestContainer()
 	if err != nil {
 		log.Fatalf("Failed to start TestContainer: %v", err)
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to init postgres: %v", err)
 	}
 
-	if err := testutils.ApplyDBMigrations(testDB); err != nil {
+	if err := tc_testutils.ApplyDBMigrations(testDB); err != nil {
 		log.Fatalf("Failed to apply migrations: %v", err)
 	}
 

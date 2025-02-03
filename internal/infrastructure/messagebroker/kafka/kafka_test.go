@@ -11,7 +11,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	infrastructure_kafka "github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/messagebroker/kafka"
-	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
+	tc_testutils "github.com/kannancmohan/go-prototype-rest-backend/internal/testutils/testcontainers"
 )
 
 const (
@@ -26,7 +26,7 @@ var (
 
 func TestMain(m *testing.M) {
 	var err error
-	pgTest := testutils.NewTestKafkaContainer(kafkaClusterId)
+	pgTest := tc_testutils.NewTestKafkaContainer(kafkaClusterId)
 	container, cleanupFunc, err := pgTest.CreateKafkaTestContainer()
 	if err != nil {
 		log.Fatalf("Failed to start kafka TestContainer: %v", err)
@@ -36,12 +36,12 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Failed to get kafka broker: %v", err)
 	}
 
-	producer, err = testutils.CreateKafkaProducer(broker)
+	producer, err = tc_testutils.CreateKafkaProducer(broker)
 	if err != nil {
 		log.Fatalf("failed to create Kafka producer: %v", err)
 	}
 
-	consumer, err = testutils.CreateKafkaConsumer(broker, "test-group", []string{testTopic})
+	consumer, err = tc_testutils.CreateKafkaConsumer(broker, "test-group", []string{testTopic})
 	if err != nil {
 		log.Fatalf("failed to create Kafka consumer: %v", err)
 	}
@@ -92,7 +92,7 @@ func TestPostMessageBrokerStore_Created(t *testing.T) {
 			if err != nil {
 				t.Error("failed to publish Created event", err.Error())
 			}
-			testutils.VerifyKafkaMessage(t, consumer, tc.eventType, tc.event)
+			tc_testutils.VerifyKafkaMessage(t, consumer, tc.eventType, tc.event)
 		})
 	}
 }

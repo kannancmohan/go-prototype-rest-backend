@@ -13,7 +13,7 @@ type DBConfig struct {
 	MaxIdleTime  time.Duration
 }
 
-func (d *DBConfig) NewConnection() (*sql.DB, error) {
+func (d *DBConfig) NewConnection(ctx context.Context) (*sql.DB, error) {
 	db, err := sql.Open("postgres", d.Addr)
 	if err != nil {
 		return nil, err
@@ -23,7 +23,7 @@ func (d *DBConfig) NewConnection() (*sql.DB, error) {
 	db.SetMaxIdleConns(d.MaxIdleConns)
 	db.SetConnMaxIdleTime(d.MaxIdleTime)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	if err = db.PingContext(ctx); err != nil {

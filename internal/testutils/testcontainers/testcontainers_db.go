@@ -1,11 +1,9 @@
-package testutils
+package testcontainers_testutils
 
 import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/docker/go-connections/nat"
@@ -18,20 +16,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func getMigrationSourcePath() string {
-	path, exists := os.LookupEnv("MIGRATIONS_PATH")
-	if exists {
-		if strings.HasPrefix(path, "file://") {
-			return path
-		}
-		return "file://" + path
-	}
-	rootDir, _ := common.GetRootDir()
-	return "file://" + rootDir + "/cmd/migrate/migrations"
-}
-
 func ApplyDBMigrationsWithDBUrl(dbUrl string) error {
-	migrationDir := getMigrationSourcePath()
+	migrationDir := common.GetMigrationSourcePath()
 	m, err := migrate.New(migrationDir, dbUrl)
 	if err != nil {
 		return err
@@ -45,11 +31,12 @@ func ApplyDBMigrationsWithDBUrl(dbUrl string) error {
 }
 
 func ApplyDBMigrations(db *sql.DB) error {
+	migrationDir := common.GetMigrationSourcePath()
 	driver, err := pgMigrate.WithInstance(db, &pgMigrate.Config{})
 	if err != nil {
 		return err
 	}
-	migrationDir := getMigrationSourcePath()
+
 	m, err := migrate.NewWithDatabaseInstance(
 		migrationDir,
 		"postgres",
