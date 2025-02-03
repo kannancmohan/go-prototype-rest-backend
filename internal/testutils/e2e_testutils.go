@@ -79,9 +79,3 @@ func NewInfraSetupFuncRegistry(name string, setupFunc InfraSetupFunc) *infraSetu
 func (s *infraSetupFuncRegistry) addInfraSetupCleanupFunc(cleanupFunc InfraSetupCleanupFunc) {
 	s.cleanupFunc = cleanupFunc
 }
-
-type appSetup struct {
-	setupFuncRegistries []*infraSetupFuncRegistry
-	SetupDoneChan       chan struct{} // to signal setup has done
-	SetupErrChan        chan struct{} // to signal setup has error
-}
