@@ -8,15 +8,8 @@ import (
 )
 
 func main() {
-	appServer, err := api_app.NewAppServer(app_common.GetEnvNameFromCommandLine())
-
+	err := api_app.ListenAndServe(app_common.GetEnvNameFromCommandLine(), app_common.SysInterruptStopChan())
 	if err != nil {
-		log.Fatalf("Error initializing app server: %s", err.Error())
+		log.Fatalf("Error starting app server: %s", err.Error())
 	}
-
-	appServer.ListenForStopChannels(app_common.SysInterruptStopChan())
-	if err := appServer.Start(); err != nil {
-		log.Fatalf("Server error: %s", err.Error())
-	}
-
 }
