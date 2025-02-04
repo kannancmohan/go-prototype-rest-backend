@@ -33,6 +33,7 @@ func init() {
 
 type UserService interface {
 	GetByID(context.Context, int64) (*model.User, error)
+	GetByEmail(context.Context, string) (*model.User, error)
 	CreateAndInvite(context.Context, dto.CreateUserReq) (*model.User, error)
 	Update(context.Context, dto.UpdateUserReq) (*model.User, error)
 	Delete(context.Context, int64) error
@@ -150,10 +151,14 @@ func setValidationErrors(origErr error, res *errorResponse) {
 	}
 }
 
-func getIntParam(param string, r *http.Request) (int64, error) {
+func getPathVariableAsInt(param string, r *http.Request) (int64, error) {
 	userID, err := strconv.ParseInt(chi.URLParam(r, param), 10, 64) //TODO
 	if err != nil {
 		return userID, common.WrapErrorf(err, common.ErrorCodeBadRequest, "invalid request")
 	}
 	return userID, nil
+}
+
+func getPathVariableAsStr(param string, r *http.Request) string {
+	return chi.URLParam(r, param)
 }

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common"
@@ -25,21 +27,48 @@ func NewUserStore(client *redis.Client, orig store.UserDBStore, expiration time.
 
 func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, error) {
 	cacheKey := userCacheKey(userID)
-	user := &model.User{}
 
-	// Attempt to fetch user from Redis
 	cacheData, err := s.client.Get(ctx, cacheKey).Result()
-	if err == nil { // Cache hit
-		err = json.Unmarshal([]byte(cacheData), user)
-		if err != nil {
-			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to unmarshal user from cache")
+	if err == redis.Nil {
+		slog.Debug("user not found in cache", "userID", userID)
+	} else if err != nil {
+		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "redis get (user) failed")
+	} else {
+		// Cache hit: Unmarshal user JSON
+		var user model.User
+		if jsonErr := json.Unmarshal([]byte(cacheData), &user); jsonErr != nil {
+			return nil, common.WrapErrorf(jsonErr, common.ErrorCodeUnknown, "failed to unmarshal user from cache")
 		}
 		slog.Debug("retrieved user from cache", "userID", userID)
-		return user, nil
-	} else if err != redis.Nil { // Redis error (other than a cache miss)
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "redis get failed")
+		return &user, nil
 	}
+
 	u, err := s.orig.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.cacheUser(ctx, u); err != nil {
+		return nil, err
+	}
+	return u, nil
+}
+
+func (s *userStore) GetByEmail(ctx context.Context, userEmail string) (*model.User, error) {
+	cacheEmailKey := userCacheKey(strings.ToLower(userEmail))
+
+	// Attempt to fetch user by email from Redis
+	userIDStr, err := s.client.Get(ctx, cacheEmailKey).Result()
+	if err == redis.Nil {
+		slog.Debug("email not found in cache", "email", userEmail)
+	} else if err != nil {
+		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "redis get (email) failed")
+	} else {
+		if userID, convErr := strconv.ParseInt(userIDStr, 10, 64); convErr == nil {
+			return s.GetByID(ctx, userID)
+		}
+	}
+
+	u, err := s.orig.GetByEmail(ctx, userEmail)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +125,7 @@ func (s *userStore) cacheUser(ctx context.Context, user *model.User) error {
 		return common.WrapErrorf(err, common.ErrorCodeUnknown, "failed to marshal user")
 	}
 	cacheKey := userCacheKey(user.ID)
-	emailCacheKey := userCacheKey(user.Email)
+	emailCacheKey := userCacheKey(strings.ToLower(user.Email))
 	// Use Redis pipeline with a transaction
 	pipe := s.client.TxPipeline()
 	pipe.Set(ctx, cacheKey, userJSON, s.expiration)     // cache user

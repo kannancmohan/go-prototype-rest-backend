@@ -72,9 +72,13 @@ func (rt *router) RegisterHandlers() http.Handler {
 			//r.Put("/activate/{token}", app.activateUserHandler)
 			r.Route("/{userID}", func(r chi.Router) {
 				//r.Use(app.AuthTokenMiddleware)
-				r.Get("/", rt.handler.UserHandler.GetUserHandler)
+				r.Get("/", rt.handler.UserHandler.GetUserByIdHandler)
 				r.Put("/", rt.handler.UserHandler.UpdateUserHandler)
 				r.Delete("/", rt.handler.UserHandler.DeleteUserHandler)
+			})
+
+			r.Route("/email/{userEmail}", func(r chi.Router) {
+				r.Get("/", rt.handler.UserHandler.GetUserByEmailHandler)
 			})
 		})
 

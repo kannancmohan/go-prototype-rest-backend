@@ -50,7 +50,7 @@ func (h *UserHandler) RegisterUserHandler(w http.ResponseWriter, r *http.Request
 }
 
 func (h *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := getIntParam("userID", r)
+	id, err := getPathVariableAsInt("userID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
@@ -77,8 +77,8 @@ func (h *UserHandler) UpdateUserHandler(w http.ResponseWriter, r *http.Request) 
 	renderResponse(w, http.StatusOK, u)
 }
 
-func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := getIntParam("userID", r)
+func (h *UserHandler) GetUserByIdHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := getPathVariableAsInt("userID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
@@ -93,8 +93,20 @@ func (h *UserHandler) GetUserHandler(w http.ResponseWriter, r *http.Request) {
 	renderResponse(w, http.StatusOK, user)
 }
 
+func (h *UserHandler) GetUserByEmailHandler(w http.ResponseWriter, r *http.Request) {
+	userEmail := getPathVariableAsStr("userEmail", r)
+
+	user, err := h.service.GetByEmail(r.Context(), userEmail)
+	if err != nil {
+		renderErrorResponse(w, "find failed", err)
+		return
+	}
+
+	renderResponse(w, http.StatusOK, user)
+}
+
 func (h *UserHandler) DeleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := getIntParam("userID", r)
+	id, err := getPathVariableAsInt("userID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
