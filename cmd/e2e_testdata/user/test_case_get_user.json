@@ -1,6 +1,6 @@
 [
     {
-        "name": "Get User: Valid user id",
+        "name": "Get User By ID: Valid id",
         "request": {
             "method": "GET",
             "path": "/api/v1/users/1"
@@ -8,13 +8,13 @@
         "expected": {
             "status": 200,
             "body": {
-                "username": "test_user1",
-                "email": "test_user1_updated@test.com"
+                "username": "e2e_test_user01",
+                "email": "e2e_test_user01_updated@test.com"
             }
         }
     },
     {
-        "name": "Get User: Invalid user id",
+        "name": "Get User By ID: Invalid id",
         "request": {
             "method": "GET",
             "path": "/api/v1/users/invalid_id"
@@ -27,10 +27,37 @@
         }
     },
     {
-        "name": "Get User: Missing user id",
+        "name": "Get User By ID: Missing id",
         "request": {
             "method": "GET",
             "path": "/api/v1/users/9999999999999"
+        },
+        "expected": {
+            "status": 404,
+            "error": {
+                "error": "find failed"
+            }
+        }
+    },
+    {
+        "name": "Get User By Email: Valid user email",
+        "request": {
+            "method": "GET",
+            "path": "/api/v1/users/email/e2e_test_user01_updated@test.com"
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "username": "e2e_test_user01",
+                "email": "e2e_test_user01_updated@test.com"
+            }
+        }
+    },
+    {
+        "name": "Get User By Email: Missing Email",
+        "request": {
+            "method": "GET",
+            "path": "/api/v1/users/email/unknown"
         },
         "expected": {
             "status": 404,

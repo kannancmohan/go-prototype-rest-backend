@@ -24,6 +24,10 @@ func (u *userService) GetByID(ctx context.Context, userID int64) (*model.User, e
 	return u.store.GetByID(ctx, userID)
 }
 
+func (u *userService) GetByEmail(ctx context.Context, userEmail string) (*model.User, error) {
+	return u.store.GetByEmail(ctx, userEmail)
+}
+
 func (u *userService) CreateAndInvite(ctx context.Context, payload dto.CreateUserReq) (*model.User, error) {
 	user := &model.User{
 		Username: payload.Username,

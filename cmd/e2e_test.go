@@ -64,7 +64,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestUserEndpoints(t *testing.T) {
-
 	createTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_create_user.json")
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
@@ -96,6 +95,37 @@ func TestUserEndpoints(t *testing.T) {
 		})
 	}
 }
+
+// func TestPostsEndpoints(t *testing.T) {
+// 	prerequisiteTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_prerequisites.json")
+// 	if err != nil || len(prerequisiteTC) < 1 {
+// 		t.Fatalf("failed to load test cases: %v", err)
+// 	}
+// 	createTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_create_user.json")
+// 	if err != nil {
+// 		t.Fatalf("failed to load test cases: %v", err)
+// 	}
+// 	// updateTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_update_user.json")
+// 	// if err != nil {
+// 	// 	t.Fatalf("failed to load test cases: %v", err)
+// 	// }
+// 	// getTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_get_user.json")
+// 	// if err != nil {
+// 	// 	t.Fatalf("failed to load test cases: %v", err)
+// 	// }
+// 	// deleteTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_delete_user.json")
+// 	// if err != nil {
+// 	// 	t.Fatalf("failed to load test cases: %v", err)
+// 	// }
+// 	client := &http.Client{}
+// 	// create a prerequisite test user
+// 	resp, err := sendRequest(serverAddr, client, prerequisiteTC[0].Request)
+// 	if err != nil {
+// 		t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
+// 	}
+// 	testcases := slices.Concat(prerequisiteTC, createTC)
+
+// }
 
 func setupTestPostgres(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
@@ -230,13 +260,24 @@ func sendRequest(serverAddr string, client *http.Client, testReq testutils.HttpT
 	return client.Do(req)
 }
 
+func getResponseBody[T any](resp *http.Response) (T, error) {
+	var respBody T
+	if resp == nil || resp.Body == nil {
+		return respBody, fmt.Errorf("http response/body is nil")
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return respBody, fmt.Errorf("error decoding response body.%w", err)
+	}
+	return respBody, nil
+}
+
 func validateResponse[T any](t *testing.T, resp *http.Response, expected *testutils.HttpTestExpectedResp, validateBody func(T, T) error) {
 	if expected.Status != resp.StatusCode {
 		t.Errorf("Expected statuscode:%d, but instead received statuscode:%d", expected.Status, resp.StatusCode)
 	}
 	if expected.Body != nil {
-		var respBody T
-		if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		respBody, err := getResponseBody[T](resp)
+		if err != nil {
 			t.Errorf("error decoding response body. received (error: %v)", err)
 		}
 		expBody, err := convertExpectedBody[T](expected.Body)

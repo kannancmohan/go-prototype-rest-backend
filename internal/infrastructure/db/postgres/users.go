@@ -59,6 +59,45 @@ func (s *userStore) GetByID(ctx context.Context, userID int64) (*model.User, err
 	return user, nil
 }
 
+func (s *userStore) GetByEmail(ctx context.Context, userEmail string) (*model.User, error) {
+	query := `
+		SELECT users.id, username, users.email, password, created_at, roles.*
+		FROM users
+		JOIN roles ON (users.role_id = roles.id)
+		WHERE users.email = $1
+	`
+
+	ctx, cancel := context.WithTimeout(ctx, s.sqlQueryTimeoutDuration)
+	defer cancel()
+
+	user := &model.User{}
+	err := s.db.QueryRowContext(
+		ctx,
+		query,
+		userEmail,
+	).Scan(
+		&user.ID,
+		&user.Username,
+		&user.Email,
+		&user.Password.Hash,
+		&user.CreatedAt,
+		&user.Role.ID,
+		&user.Role.Name,
+		&user.Role.Level,
+		&user.Role.Description,
+	)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			return nil, common.ErrNotFound
+		default:
+			return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "user not found")
+		}
+	}
+
+	return user, nil
+}
+
 func (s *userStore) Create(ctx context.Context, user *model.User) error {
 	query := `
 		INSERT INTO users (username, password, email, role_id) VALUES 

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -26,7 +27,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func ListenAndServe(envName string, stopChannels ...app_common.StopChan) error {
+func ListenAndServe(envName string, stopChannels ...app_common.StopChan) (err error) {
+    defer func() {// Recover from panics and log the stack trace
+        if r := recover(); r != nil {
+            stackTrace := string(debug.Stack())// Capture the stack trace
+            slog.Error("Recovered from panic","panic", r,"stack_trace", stackTrace)
+            err = fmt.Errorf("panic occurred: %v", r) // Return the panic as an error
+        }
+    }()
+
 	infra, err := initInfraResources(envName)
 	if err != nil {
 		return fmt.Errorf("error initializing infra resources: %w", err)
@@ -37,6 +46,7 @@ func ListenAndServe(envName string, stopChannels ...app_common.StopChan) error {
 	if err != nil {
 		return fmt.Errorf("error initializing store resources: %w", err)
 	}
+	
 	pService := service.NewPostService(store.postStore, store.msgBrokerStore, store.searchStore)
 	uService := service.NewUserService(store.userStore)
 

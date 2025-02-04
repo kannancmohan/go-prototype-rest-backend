@@ -36,7 +36,7 @@ func NewPostHandler(service PostService) *PostHandler {
 }
 
 func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := getIntParam("postID", r)
+	id, err := getPathVariableAsInt("postID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
@@ -73,7 +73,7 @@ func (h *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *PostHandler) UpdatePostHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := getIntParam("postID", r)
+	id, err := getPathVariableAsInt("postID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
@@ -99,7 +99,7 @@ func (h *PostHandler) UpdatePostHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *PostHandler) DeletePostHandler(w http.ResponseWriter, r *http.Request) {
-	id, err := getIntParam("postID", r)
+	id, err := getPathVariableAsInt("postID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
 		return
