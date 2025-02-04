@@ -17,9 +17,6 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 )
 
-//go:generate mockgen -destination=../service/mocks/mock_user_service.go -package=mockservice github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler UserService
-//go:generate mockgen -destination=../service/mocks/mock_posts_service.go -package=mockservice github.com/kannancmohan/go-prototype-rest-backend/internal/api/handler PostService
-
 var validate *validator.Validate
 
 func init() {
