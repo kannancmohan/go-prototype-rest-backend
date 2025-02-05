@@ -57,7 +57,7 @@ func (rt *router) RegisterHandlers() http.Handler {
 
 			r.Route("/{postID}", func(r chi.Router) {
 				//r.Use(app.postsContextMiddleware)
-				r.Get("/", rt.handler.PostHandler.GetPostHandler)
+				r.Get("/", rt.handler.PostHandler.GetPostByIdHandler)
 				r.Put("/", rt.handler.PostHandler.UpdatePostHandler)
 				r.Delete("/", rt.handler.PostHandler.DeletePostHandler)
 			})

@@ -9,17 +9,17 @@
             },
             "body": {
                 "user_id": {{.userID | json}},
-                "title": "e2e test title01",
-                "content": "e2e test content01",
-                "tags": ["e2e_test","test01"]
+                "title": "e2e test title02",
+                "content": "e2e test content02",
+                "tags": ["e2e_test","test02"]
             }
         },
         "expected": {
             "status": 201,
             "body": {
-                "title": "e2e test title01",
-                "content": "e2e test  content01",
-                "tags": ["e2e_test","test01"]
+                "title": "e2e test title02",
+                "content": "e2e test  content02",
+                "tags": ["e2e_test","test02"]
             }
         }
     },
@@ -52,8 +52,8 @@
             },
             "body": {
                 "user_id": {{.userID | json}},
-                "content": "e2e test content01",
-                "tags": ["e2e_test","test01"]
+                "content": "e2e test content02",
+                "tags": ["e2e_test","test02"]
             }
         },
         "expected": {

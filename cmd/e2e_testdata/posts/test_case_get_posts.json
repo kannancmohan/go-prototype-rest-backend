@@ -1,0 +1,41 @@
+[
+    {
+        "name": "Get Post By ID: Valid id",
+        "request": {
+            "method": "GET",
+            "path": "/api/v1/posts/{{.postID}}"
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "title": "e2e test title01"
+            }
+        }
+    },
+    {
+        "name": "Get Post By ID: Invalid id",
+        "request": {
+            "method": "GET",
+            "path": "/api/v1/posts/invalid_id"
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    },
+    {
+        "name": "Get Post By ID: Missing id",
+        "request": {
+            "method": "GET",
+            "path": "/api/v1/posts/9999999999999"
+        },
+        "expected": {
+            "status": 404,
+            "error": {
+                "error": "find failed"
+            }
+        }
+    }
+]

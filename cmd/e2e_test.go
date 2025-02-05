@@ -29,6 +29,13 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	// defer func() { // Recover from panics and log the stack trace
+	// 	if r := recover(); r != nil {
+	// 		stackTrace := string(debug.Stack()) // Capture the stack trace
+	// 		log.Printf("Recovered from panic:%v stack_trace[%s]", r, stackTrace)
+	// 	}
+	// }()
+
 	sysStopChan := app_common.SysInterruptStopChan()
 
 	setup := testutils.NewInfraSetup(
@@ -109,12 +116,35 @@ func TestPostsEndpoints(t *testing.T) {
 		t.Fatalf("failed to create test user: %v", err)
 	}
 
+	// create prerequisite post required for testing update,get and delete endpoints
+	post, err := sendAndGetResponseBody[model.Post](serverAddr, client, testutils.HttpTestRequest{
+		Method:  "POST",
+		Path:    "/api/v1/posts",
+		Headers: map[string]string{"Content-Type": "application/json"},
+		Body:    map[string]interface{}{"user_id": user.ID, "title": "e2e test title01", "content": "e2e test content01", "tags": []string{"e2e_test", "test01"}},
+	})
+	if err != nil {
+		t.Fatalf("failed to create test post: %v", err)
+	}
+
 	createTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_create_posts.json", map[string]interface{}{"userID": user.ID})
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
+	updateTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_update_posts.json", map[string]interface{}{"postID": post.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	getTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_get_posts.json", map[string]interface{}{"postID": post.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_delete_posts.json", map[string]interface{}{"postID": post.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
 
-	testcases := slices.Concat(createTC)
+	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
 
 	for _, tc := range testcases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -246,6 +276,17 @@ func convertExpectedBody[T any](data any) (T, error) {
 	return v, nil
 }
 
+func getResponseBody[T any](resp *http.Response) (T, error) {
+	var respBody T
+	if resp == nil || resp.Body == nil {
+		return respBody, fmt.Errorf("http response/body is nil")
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return respBody, fmt.Errorf("error decoding response body.%w", err)
+	}
+	return respBody, nil
+}
+
 func sendAndGetResponseBody[T any](serverAddr string, client *http.Client, testReq testutils.HttpTestRequest) (T, error) {
 	var respBody T
 	resp, err := testutils.SendRequest(serverAddr, client, testReq)
@@ -259,17 +300,6 @@ func sendAndGetResponseBody[T any](serverAddr string, client *http.Client, testR
 		return respBody, err
 	}
 
-	return respBody, nil
-}
-
-func getResponseBody[T any](resp *http.Response) (T, error) {
-	var respBody T
-	if resp == nil || resp.Body == nil {
-		return respBody, fmt.Errorf("http response/body is nil")
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
-		return respBody, fmt.Errorf("error decoding response body.%w", err)
-	}
 	return respBody, nil
 }
 

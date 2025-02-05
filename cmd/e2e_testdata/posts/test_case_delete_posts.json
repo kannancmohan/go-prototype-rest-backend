@@ -1,0 +1,38 @@
+[
+    {
+        "name": "Delete Post: Valid user id",
+        "request": {
+            "method": "DELETE",
+            "path": "/api/v1/posts/{{.postID}}"
+        },
+        "expected": {
+            "status": 200
+        }
+    },
+    {
+        "name": "Delete Post: Invalid user id",
+        "request": {
+            "method": "DELETE",
+            "path": "/api/v1/posts/invalid_id"
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    },
+    {
+        "name": "Delete Post: Missing user id",
+        "request": {
+            "method": "DELETE",
+            "path": "/api/v1/posts/9999999999999"
+        },
+        "expected": {
+            "status": 404,
+            "error": {
+                "error": "delete failed"
+            }
+        }
+    }
+]

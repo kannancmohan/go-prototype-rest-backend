@@ -1,0 +1,79 @@
+[
+    {
+        "name": "Update Posts: Valid tag updates",
+        "request": {
+            "method": "PUT",
+            "path": "/api/v1/posts/{{.postID}}",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "tags": ["e2e_test","test01","updated_test01"]
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "title": "e2e test title01",
+                "tags": ["e2e_test","test01","updated_test01"]
+            }
+        }
+    },
+    {
+        "name": "Update Posts: Invalid post id",
+        "request": {
+            "method": "PUT",
+            "path": "/api/v1/posts/invalid_id",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "tags": ["e2e_test","test01","updated_test01"]
+            }
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    },
+    {
+        "name": "Update Posts: Missing post id",
+        "request": {
+            "method": "PUT",
+            "path": "/api/v1/posts/9999999999999",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "tags": ["e2e_test","test01","updated_test01"]
+            }
+        },
+        "expected": {
+            "status": 404,
+            "error": {
+                "error": "update failed"
+            }
+        }
+    },
+    {
+        "name": "Update Posts: Invalid request body",
+        "request": {
+            "method": "PUT",
+            "path": "/api/v1/posts/{{.postID}}",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "key": "invalid"
+            }
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    }
+]

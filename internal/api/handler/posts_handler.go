@@ -35,7 +35,7 @@ func NewPostHandler(service PostService) *PostHandler {
 	return &PostHandler{service: service}
 }
 
-func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
+func (h *PostHandler) GetPostByIdHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := getPathVariableAsInt("postID", r)
 	if err != nil {
 		renderErrorResponse(w, "invalid request", err)
@@ -48,7 +48,7 @@ func (h *PostHandler) GetPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderResponse(w, http.StatusCreated, post)
+	renderResponse(w, http.StatusOK, post)
 }
 
 func (h *PostHandler) CreatePostHandler(w http.ResponseWriter, r *http.Request) {
