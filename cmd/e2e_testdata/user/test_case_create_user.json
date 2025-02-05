@@ -8,17 +8,17 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "username": "e2e_test_user01",
-                "email": "e2e_test_user01@test.com",
-                "password": "e2e_test_user01",
+                "username": "e2e_usertest_user02",
+                "email": "e2e_usertest_user02@test.com",
+                "password": "e2e_usertest_user02",
                 "role": "admin"
             }
         },
         "expected": {
             "status": 201,
             "body": {
-                "username": "e2e_test_user01",
-                "email": "e2e_test_user01@test.com"
+                "username": "e2e_usertest_user02",
+                "email": "e2e_usertest_user02@test.com"
             }
         }
     },
@@ -31,9 +31,9 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "username": "e2e_test_user01",
-                "email": "e2e_test_user01@test.com",
-                "password": "e2e_test_user01",
+                "username": "e2e_usertest_user02",
+                "email": "e2e_usertest_user02@test.com",
+                "password": "e2e_usertest_user02",
                 "role": "admin"
             }
         },

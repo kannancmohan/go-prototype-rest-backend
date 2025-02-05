@@ -3,13 +3,13 @@
         "name": "Get User By ID: Valid id",
         "request": {
             "method": "GET",
-            "path": "/api/v1/users/1"
+            "path": "/api/v1/users/{{.userID}}"
         },
         "expected": {
             "status": 200,
             "body": {
-                "username": "e2e_test_user01",
-                "email": "e2e_test_user01_updated@test.com"
+                "username": "e2e_usertest_user01",
+                "email": "e2e_usertest_user01_updated@test.com"
             }
         }
     },
@@ -43,13 +43,13 @@
         "name": "Get User By Email: Valid user email",
         "request": {
             "method": "GET",
-            "path": "/api/v1/users/email/e2e_test_user01_updated@test.com"
+            "path": "/api/v1/users/email/{{.userEmail}}"
         },
         "expected": {
             "status": 200,
             "body": {
-                "username": "e2e_test_user01",
-                "email": "e2e_test_user01_updated@test.com"
+                "username": "e2e_usertest_user01",
+                "email": "e2e_usertest_user01_updated@test.com"
             }
         }
     },

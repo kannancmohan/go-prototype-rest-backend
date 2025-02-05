@@ -3,7 +3,7 @@
         "name": "Delete User: Valid user id",
         "request": {
             "method": "DELETE",
-            "path": "/api/v1/users/1"
+            "path": "/api/v1/users/{{.userID}}"
         },
         "expected": {
             "status": 200

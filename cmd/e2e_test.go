@@ -70,25 +70,37 @@ func TestMain(m *testing.M) {
 }
 
 func TestUserEndpoints(t *testing.T) {
+	client := &http.Client{}
+
+	// create prerequisite user required for testing update,get and delete endpoints
+	user, err := sendAndGetResponseBody[model.User](serverAddr, client, testutils.HttpTestRequest{
+		Method:  "POST",
+		Path:    "/api/v1/authentication/user",
+		Headers: map[string]string{"Content-Type": "application/json"},
+		Body:    map[string]string{"username": "e2e_usertest_user01", "email": "e2e_usertest_user01@test.com", "password": "e2e_usertest_user01", "role": "admin"},
+	})
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
 	createTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_create_user.json", nil)
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
-	updateTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_update_user.json", nil)
+	updateTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_update_user.json", map[string]interface{}{"userID": user.ID})
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
-	getTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_get_user.json", nil)
+	getTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_get_user.json", map[string]interface{}{"userID": user.ID, "userEmail": user.Email})
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
-	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_delete_user.json", nil)
+	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_delete_user.json", map[string]interface{}{"userID": user.ID})
 	if err != nil {
 		t.Fatalf("failed to load test cases: %v", err)
 	}
-	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
 
-	client := &http.Client{}
+	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
 
 	for _, tc := range testcases {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -110,7 +122,7 @@ func TestPostsEndpoints(t *testing.T) {
 		Method:  "POST",
 		Path:    "/api/v1/authentication/user",
 		Headers: map[string]string{"Content-Type": "application/json"},
-		Body:    map[string]string{"username": "e2e_test_user02", "email": "e2e_test_user02@test.com", "password": "e2e_test_user02", "role": "admin"},
+		Body:    map[string]string{"username": "e2e_poststest_user01", "email": "e2e_poststest_user01@test.com", "password": "e2e_poststest_user01", "role": "admin"},
 	})
 	if err != nil {
 		t.Fatalf("failed to create test user: %v", err)

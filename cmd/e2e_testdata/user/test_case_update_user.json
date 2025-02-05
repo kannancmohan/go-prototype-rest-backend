@@ -8,13 +8,13 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "email": "e2e_test_user01_updated@test.com"
+                "email": "e2e_usertest_user01_updated@test.com"
             }
         },
         "expected": {
             "status": 200,
             "body": {
-                "email": "e2e_test_user01_updated@test.com"
+                "email": "e2e_usertest_user01_updated@test.com"
             }
         }
     },
@@ -27,8 +27,8 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "email": "e2e_test_user01_updated@test.com",
-                "password": "e2e_test_user01_updated"
+                "email": "e2e_usertest_user01_updated@test.com",
+                "password": "e2e_usertest_user01_updated"
             }
         },
         "expected": {
@@ -47,8 +47,8 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "email": "e2e_test_user01_updated@test.com",
-                "password": "e2e_test_user01_updated"
+                "email": "e2e_usertest_user01_updated@test.com",
+                "password": "e2e_usertest_user01_updated"
             }
         },
         "expected": {
