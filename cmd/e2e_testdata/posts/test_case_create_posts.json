@@ -1,0 +1,67 @@
+[
+    {
+        "name": "Create Posts: Valid request",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "user_id": {{.userID | json}},
+                "title": "e2e test title01",
+                "content": "e2e test content01",
+                "tags": ["e2e_test","test01"]
+            }
+        },
+        "expected": {
+            "status": 201,
+            "body": {
+                "title": "e2e test title01",
+                "content": "e2e test  content01",
+                "tags": ["e2e_test","test01"]
+            }
+        }
+    },
+    {
+        "name": "Create Posts: Invalid request body",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "key": "invalid"
+            }
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request"
+            }
+        }
+    },
+    {
+        "name": "Create Posts: Missing required filed title",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "user_id": {{.userID | json}},
+                "content": "e2e test content01",
+                "tags": ["e2e_test","test01"]
+            }
+        },
+        "expected": {
+            "status": 400,
+            "error": {
+                "error": "invalid request",
+                "validations": ["The field 'Title' failed on the 'required' validation"]
+            }
+        }
+    }
+]
