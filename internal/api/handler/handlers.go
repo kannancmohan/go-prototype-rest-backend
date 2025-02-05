@@ -29,6 +29,14 @@ func init() {
 			sl.ReportError(payload, "updatePostPayload", "updatePostPayload", "atleastone=title content tags", "")
 		}
 	}, updatePostPayload{})
+
+	// Custom struct validation for checking searchPostPayload struct
+	validate.RegisterStructValidation(func(sl validator.StructLevel) {
+		payload := sl.Current().Interface().(searchPostPayload)
+		if payload.Title == "" && payload.Content == "" && len(payload.Tags) < 1 && payload.UserID < 1 {
+			sl.ReportError(payload, "searchPostPayload", "searchPostPayload", "atleastone=title content tags user_id", "")
+		}
+	}, searchPostPayload{})
 }
 
 type UserService interface {
