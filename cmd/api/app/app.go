@@ -27,7 +27,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func ListenAndServe(envName string, stopChannels ...app_common.StopChan) (err error) {
+func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_common.StopChan) (err error) {
 	defer func() { // Recover from panics and log the stack trace
 		if r := recover(); r != nil {
 			stackTrace := string(debug.Stack()) // Capture the stack trace
@@ -36,13 +36,13 @@ func ListenAndServe(envName string, stopChannels ...app_common.StopChan) (err er
 		}
 	}()
 
-	infra, err := initInfraResources(envName)
+	infra, err := initInfraResources(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("error initializing infra resources: %w", err)
 	}
 	defer infra.Close() // Ensure resources are closed when main exits
 
-	store, err := initStoreResources(infra)
+	store, err := initStoreResources(ctx, infra)
 	if err != nil {
 		return fmt.Errorf("error initializing store resources: %w", err)
 	}
@@ -158,7 +158,7 @@ func newStoreResource(postStore store.PostDBStore, userStore store.UserDBStore, 
 	return storeResource{postStore: postStore, userStore: userStore, msgBrokerStore: msgBrokerStore, searchStore: searchStore}
 }
 
-func initStoreResources(infra *infraResource) (storeResource, error) {
+func initStoreResources(ctx context.Context, infra *infraResource) (storeResource, error) {
 	pStore := postgres.NewPostDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
 	uStore := postgres.NewUserDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
@@ -168,14 +168,14 @@ func initStoreResources(infra *infraResource) (storeResource, error) {
 	cachedPStore := redis_cache.NewPostStore(infra.redis, pStore, infra.env.ApiRedisCacheExpirationDuration)
 	cachedUStore := redis_cache.NewUserStore(infra.redis, uStore, infra.env.ApiRedisCacheExpirationDuration)
 
-	searchStore, err := elasticsearch.NewPostSearchIndexStore(infra.elasticsearch, infra.env.ElasticIndexName)
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName)
 	if err != nil {
 		return storeResource{}, fmt.Errorf("error init PostSearchIndexStore: %w", err)
 	}
 	return newStoreResource(cachedPStore, cachedUStore, messageBrokerStore, searchStore), nil
 }
 
-func initInfraResources(envName string) (*infraResource, error) {
+func initInfraResources(ctx context.Context, envName string) (*infraResource, error) {
 
 	//TODO run the following processes in goroutine
 	//get secrets
@@ -195,7 +195,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 		MaxIdleConns: env.ApiDBMaxIdleConns,
 		MaxIdleTime:  env.ApiDBMaxIdleTime,
 	}
-	db, err := dbCfg.NewConnection(context.Background())
+	db, err := dbCfg.NewConnection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error init db: %w", err)
 	}
@@ -206,7 +206,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 		Addr: env.RedisHost,
 		DB:   redisDB,
 	}
-	redis, err := redisCfg.NewConnection(context.Background())
+	redis, err := redisCfg.NewConnection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error init redis: %w", err)
 	}

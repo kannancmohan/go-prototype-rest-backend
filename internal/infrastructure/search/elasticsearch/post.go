@@ -21,9 +21,9 @@ type postSearchIndexStore struct {
 	index  string
 }
 
-func NewPostSearchIndexStore(client *esv8.Client, index string) (*postSearchIndexStore, error) {
+func NewPostSearchIndexStore(ctx context.Context, client *esv8.Client, index string) (*postSearchIndexStore, error) {
 
-	err := ensureIndexExists(context.Background(), client, index)
+	err := ensureIndexExists(ctx, client, index)
 	if err != nil {
 		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error ensuring index exists")
 	}

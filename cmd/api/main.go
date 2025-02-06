@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	api_app "github.com/kannancmohan/go-prototype-rest-backend/cmd/api/app"
@@ -8,7 +9,7 @@ import (
 )
 
 func main() {
-	err := api_app.ListenAndServe(app_common.GetEnvNameFromCommandLine(), app_common.SysInterruptStopChan())
+	err := api_app.ListenAndServe(context.Background(), app_common.GetEnvNameFromCommandLine(), app_common.SysInterruptStopChan())
 	if err != nil {
 		log.Fatalf("Error starting aoi app: %s", err.Error())
 	}

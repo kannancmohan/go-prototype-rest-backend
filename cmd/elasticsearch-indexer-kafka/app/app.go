@@ -19,14 +19,14 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/envvarsecret"
 )
 
-func ListenAndServe(envName string, stopChannels ...app_common.StopChan) error {
-	infra, err := initInfraResources(envName)
+func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_common.StopChan) error {
+	infra, err := initInfraResources(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("error initializing infra resources: %w", err)
 	}
 	defer infra.Close() // Ensure resources are closed when main exits
 
-	store, err := initStoreResources(infra)
+	store, err := initStoreResources(ctx, infra)
 	if err != nil {
 		return fmt.Errorf("error initializing store resources: %w", err)
 	}
@@ -146,15 +146,15 @@ func newStoreResource(searchStore store.PostSearchIndexStore) storeResource {
 	return storeResource{searchStore: searchStore}
 }
 
-func initStoreResources(infra *infraResource) (storeResource, error) {
-	searchStore, err := elasticsearch.NewPostSearchIndexStore(infra.elasticsearch, infra.env.ElasticIndexName)
+func initStoreResources(ctx context.Context, infra *infraResource) (storeResource, error) {
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName)
 	if err != nil {
 		return storeResource{}, fmt.Errorf("error init PostSearchIndexStore: %w", err)
 	}
 	return newStoreResource(searchStore), nil
 }
 
-func initInfraResources(envName string) (*infraResource, error) {
+func initInfraResources(ctx context.Context, envName string) (*infraResource, error) {
 
 	//TODO run the following processes in goroutine
 	//get secrets

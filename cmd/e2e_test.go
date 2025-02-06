@@ -400,7 +400,7 @@ func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
 	// Start the application in a goroutine
 	errChan := make(chan error, 2)
 	go func() {
-		err := api_app.ListenAndServe("") //TODO
+		err := api_app.ListenAndServe(ctx, "") //TODO
 		if err != nil {
 			errChan <- err
 			return
