@@ -23,13 +23,13 @@ func NewInfraSetup(setupFuncRegistries ...*infraSetupFuncRegistry) *infraSetup {
 }
 
 func (s *infraSetup) Start(ctx context.Context) {
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
 	var setupWG sync.WaitGroup
 	for _, setupReg := range s.setupFuncRegistries {
 		setupWG.Add(1)
-		go func(name string, setupFunc InfraSetupFunc) {
+		go func(ctx context.Context, name string, setupFunc InfraSetupFunc) {
 			defer setupWG.Done()
 			if err := ctx.Err(); err != nil { //skip in case ctx is cancelled/timeout
 				log.Printf("Skipping setup of %s container: %v", name, err)
@@ -45,7 +45,7 @@ func (s *infraSetup) Start(ctx context.Context) {
 				return                // return from goroutine
 			}
 			log.Printf("Successfully started %s container", name)
-		}(setupReg.name, setupReg.setupFunc)
+		}(tCtx, setupReg.name, setupReg.setupFunc)
 	}
 	setupWG.Wait()
 	close(s.SetupDoneChan) // notify that setup has been done
@@ -125,7 +125,7 @@ func (s *appSetup) Start(ctx context.Context) {
 	var setupWG sync.WaitGroup
 	for name, setupReg := range s.appSetupFuncRegistries {
 		setupWG.Add(1)
-		go func(name string, setupFunc AppSetupFunc) {
+		go func(ctx context.Context, name string, setupFunc AppSetupFunc) {
 			defer setupWG.Done()
 			if err := ctx.Err(); err != nil { //skip in case ctx is cancelled/timeout
 				log.Printf("Skipping setup of %s app: %v", name, err)
@@ -141,7 +141,7 @@ func (s *appSetup) Start(ctx context.Context) {
 			}
 			setupReg.addAppSetupFuncResponse(resp)
 			log.Printf("Successfully started %s app", name)
-		}(name, setupReg.setupFunc)
+		}(ctx, name, setupReg.setupFunc)
 	}
 	setupWG.Wait()
 	close(s.DoneChan) // notify that all apps are started
