@@ -8,7 +8,7 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "user_id": {{.userID | json}},
+                "user_id": {{.userID | toJSON}},
                 "title": "e2e test title02",
                 "content": "e2e test content02",
                 "tags": ["e2e_test","test02"]
@@ -51,7 +51,7 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "user_id": {{.userID | json}},
+                "user_id": {{.userID | toJSON}},
                 "content": "e2e test content02",
                 "tags": ["e2e_test","test02"]
             }

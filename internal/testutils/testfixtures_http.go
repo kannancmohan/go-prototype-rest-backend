@@ -52,8 +52,8 @@ func LoadTestCases(file string, placeholders map[string]interface{}) ([]HttpTest
 
 func applyTemplate(jsonStr string, placeholders map[string]interface{}) (string, error) {
 	funcMap := template.FuncMap{
-		// Define a custom 'json' function to marshal values into raw JSON
-		"json": func(v interface{}) (string, error) {
+		// Define a custom 'toJSON' function to marshal values into raw JSON
+		"toJSON": func(v interface{}) (string, error) {
 			bytes, err := json.Marshal(v)
 			if err != nil {
 				return "", err
