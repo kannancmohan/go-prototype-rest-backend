@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"testing"
@@ -29,14 +30,26 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	// defer func() { // Recover from panics and log the stack trace
-	// 	if r := recover(); r != nil {
-	// 		stackTrace := string(debug.Stack()) // Capture the stack trace
-	// 		log.Printf("Recovered from panic:%v stack_trace[%s]", r, stackTrace)
-	// 	}
-	// }()
+	os.Exit(doTest(m))
+}
 
-	sysStopChan := app_common.SysInterruptStopChan()
+func doTest(m *testing.M) (exitCode int) {
+	sysStopChan := app_common.SysInterruptStopChan()        // Create a chan to capture os interrupt signal
+	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
+	defer cancel()
+
+	defer func() { // Recover from panics and log the stack trace
+		if r := recover(); r != nil {
+			stackTrace := string(debug.Stack()) // Capture the stack trace
+			log.Printf("Recovered from panic:%v stack_trace[%s]", r, stackTrace)
+		}
+	}()
+
+	go func() { // Cancel context on receiving an os interrupt signal
+		<-sysStopChan
+		fmt.Println("Received OS interrupt signal. Cancelling main context...")
+		cancel()
+	}()
 
 	setup := testutils.NewInfraSetup(
 		testutils.NewInfraSetupFuncRegistry("postgres", setupTestPostgres),
@@ -44,29 +57,48 @@ func TestMain(m *testing.M) {
 		testutils.NewInfraSetupFuncRegistry("elasticsearch", setupTestElasticsearch),
 		testutils.NewInfraSetupFuncRegistry("kafka", setupTestKafka),
 	)
-	go setup.Start()
+	defer setup.Cleanup(context.Background())
 
-	var exitCode int
+	go setup.Start(ctx)
+
+	//wait for setup to be done or cancelled
 	select {
-	case <-setup.SetupDoneChan:
-		if err := initApp(sysStopChan); err != nil {
-			log.Printf("App init failed with error:%s", err.Error())
-			exitCode = 1
-		} else {
-			log.Println("Setup and App init done, executing test cases..")
-			exitCode = m.Run()
-		}
+	case <-ctx.Done():
+		log.Println("Context cancelled. Cancelling setup...")
+		return 1
 	case <-setup.SetupErrChan:
 		log.Println("Setup failed with error")
-		exitCode = 1
-	case <-sysStopChan:
-		log.Println("Received interrupt signal")
-		exitCode = 1
+		return 1
+	case <-setup.SetupDoneChan:
+		log.Println("Setup done..")
 	}
 
-	//TODO - handle proper cleanup on interrupt signal. i.e terminating test in middle of container creation
-	setup.Cleanup(context.Background())
-	os.Exit(exitCode)
+	apps := testutils.NewAppSetup().AddSetupFunc("api", startApiApp)
+
+	go apps.Start(ctx)
+
+	//wait for apps to start or cancel
+	select {
+	case <-ctx.Done():
+		log.Println("Context cancelled. Cancelling Apps...")
+		return 1
+	case <-apps.ErrChan:
+		log.Println("Apps failed with error")
+		return 1
+	case <-apps.DoneChan:
+		log.Println("Apps started.., Executing test cases")
+	}
+
+	//get the server address for api app
+	apiAppResp, err := apps.GetAppSetupFunResponse("api")
+	if err != nil {
+		log.Println("Apps failed with error")
+		return 1
+	}
+	serverAddr = apiAppResp.Addr
+
+	// run the test
+	return m.Run()
 }
 
 func TestUserEndpoints(t *testing.T) {
@@ -353,34 +385,44 @@ func compareTestUser(expected, actual model.User) error {
 	return nil
 }
 
-func initApp(stopChan ...app_common.StopChan) error {
+func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
+	var appFuncResponse testutils.AppSetupFuncResponse
+	if err := ctx.Err(); err != nil {
+		return appFuncResponse, err
+	}
+
 	port, err := testutils.GetFreePort()
 	if err != nil {
-		return fmt.Errorf("failed to get a free port: %w", err)
+		return appFuncResponse, fmt.Errorf("failed to get a free port: %w", err)
 	}
 	os.Setenv("API_PORT", port)
 
 	// Start the application in a goroutine
 	errChan := make(chan error, 2)
 	go func() {
-		err := api_app.ListenAndServe("", stopChan...)
+		err := api_app.ListenAndServe("") //TODO
 		if err != nil {
 			errChan <- err
 			return
 		}
 	}()
 	go func() {
-		if err := testutils.WaitForPort(port, 10*time.Second); err != nil {
+		if err := testutils.WaitForPort(port, 15*time.Second); err != nil {
 			errChan <- err
 		}
-		close(errChan)
+		close(errChan) // close the errChan if port is accessible
 	}()
 
-	err = <-errChan // block until errChan is triggered
-	if err != nil {
-		return err
+	select {
+	case <-ctx.Done():
+		return appFuncResponse, fmt.Errorf("context cancelled. cancelled starting of startApiApp")
+	case appErr := <-errChan:
+		if appErr != nil {
+			return appFuncResponse, appErr
+		}
+		appFuncResponse = testutils.AppSetupFuncResponse{
+			Addr: fmt.Sprintf("http://localhost:%s", port),
+		}
+		return appFuncResponse, nil
 	}
-
-	serverAddr = fmt.Sprintf("http://localhost:%s", port)
-	return nil
 }
