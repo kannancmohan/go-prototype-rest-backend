@@ -56,7 +56,7 @@ func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_com
 	routes := router.RegisterHandlers()
 
 	appServer := newAppServer(infra.env.ApiAddr, routes)
-	appServer.listenForStopChannels(stopChannels...)
+	appServer.listenForStopChannels(ctx, stopChannels...)
 	if err := appServer.start(); err != nil {
 		return err
 	}
@@ -81,9 +81,9 @@ func newAppServer(apiAddr string, routes http.Handler) *appServer {
 	return &appServer{name: "api", appStopChan: make(chan struct{}), httpServer: httpServer}
 }
 
-func (a *appServer) listenForStopChannels(stopChannels ...app_common.StopChan) {
+func (a *appServer) listenForStopChannels(ctx context.Context, stopChannels ...app_common.StopChan) {
 	go func() {
-		<-app_common.WaitForStopChan(context.Background(), stopChannels)
+		<-app_common.WaitForStopChan(ctx, stopChannels)
 		slog.Debug("external stop signal received in ListenForStopSignals")
 		//TODO check usage of a.appStopChan <- struct{}{} instead of close(a.appStopChan)
 		close(a.appStopChan) // send app stop signal
@@ -138,13 +138,14 @@ func newInfraResource(env *EnvVar, db *sql.DB, redis *redis.Client, kafkaProd *k
 
 func (i *infraResource) Close() {
 	if i.db != nil {
-		slog.Info("Closing db connection")
+		slog.Debug("Closing db connection")
 		i.db.Close()
 	}
 	if i.redis != nil {
-		slog.Info("Redis client connection closed")
+		slog.Debug("Redis client connection closed")
 		i.redis.Close()
 	}
+	slog.Info("finished infra connection cleanup")
 }
 
 type storeResource struct {

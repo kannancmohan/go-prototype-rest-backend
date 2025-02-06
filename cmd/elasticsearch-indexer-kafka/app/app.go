@@ -32,7 +32,7 @@ func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_com
 	}
 
 	appServer := newAppServer(infra, store)
-	appServer.listenForStopChannels(stopChannels...)
+	appServer.listenForStopChannels(ctx, stopChannels...)
 	if err := appServer.start(); err != nil {
 		return err
 	}
@@ -50,9 +50,9 @@ func newAppServer(infra *infraResource, store storeResource) *appServer {
 	return &appServer{infra: infra, store: store, appStopChan: make(chan struct{})}
 }
 
-func (a *appServer) listenForStopChannels(stopChannels ...app_common.StopChan) {
+func (a *appServer) listenForStopChannels(ctx context.Context, stopChannels ...app_common.StopChan) {
 	go func() {
-		<-app_common.WaitForStopChan(context.Background(), stopChannels)
+		<-app_common.WaitForStopChan(ctx, stopChannels)
 		slog.Debug("external stop signal received in ListenForStopSignals")
 		//TODO check usage of a.appStopChan <- struct{}{} instead of close(a.appStopChan)
 		close(a.appStopChan) // send app stop signal
