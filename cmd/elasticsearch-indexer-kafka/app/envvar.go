@@ -25,7 +25,7 @@ func initEnvVar(sec store.SecretFetchStore) *EnvVar {
 	return &EnvVar{
 		LogLevel:             sec.GetEnvString("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
 		KafkaHost:            sec.GetEnvString("KAFKA_HOST", "192.168.0.30:9093"),
-		KafkaConsumerTopic:   sec.GetEnvString("API_KAFKA_TOPIC", "posts"),
+		KafkaConsumerTopic:   sec.GetEnvString("APP_SEARCH_INDEXER_KAFKA_TOPIC", "posts"),
 		KafkaConsumerGroupId: sec.GetEnvString("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID", "elasticsearch-indexer"),
 		KafkaAutoOffsetRest:  sec.GetEnvString("APP_SEARCH_INDEXER_KAFKA_AUTO_OFFSET_REST", "earliest"),
 		ElasticHost:          sec.GetEnvString("ELASTIC_HOST", "http://192.168.0.30:9200"),

@@ -164,7 +164,7 @@ func initStoreResources(ctx context.Context, infra *infraResource) (storeResourc
 	uStore := postgres.NewUserDBStore(infra.db, infra.env.AppDBQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
 
-	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(infra.kafkaProd, infra.env.KafkaProdTopic)
+	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(infra.kafkaProd, infra.env.AppKafkaProdTopic)
 
 	cachedPStore := redis_cache.NewPostStore(infra.redis, pStore, infra.env.AppRedisCacheExpirationDuration)
 	cachedUStore := redis_cache.NewUserStore(infra.redis, uStore, infra.env.AppRedisCacheExpirationDuration)

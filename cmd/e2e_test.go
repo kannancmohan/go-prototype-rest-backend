@@ -18,6 +18,7 @@ import (
 
 	"github.com/docker/go-connections/nat"
 	api_app "github.com/kannancmohan/go-prototype-rest-backend/cmd/api/app"
+	search_indexer_app "github.com/kannancmohan/go-prototype-rest-backend/cmd/elasticsearch-indexer-kafka/app"
 	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
@@ -155,10 +156,10 @@ func doTest(m *testing.M) (exitCode int) {
 	}()
 
 	setup := testutils.NewInfraSetup(
-		testutils.NewInfraSetupFuncRegistry("postgres", setupTestPostgres),
-		testutils.NewInfraSetupFuncRegistry("redis", setupTestRedis),
-		testutils.NewInfraSetupFuncRegistry("elasticsearch", setupTestElasticsearch),
-		testutils.NewInfraSetupFuncRegistry("kafka", setupTestKafka),
+		testutils.NewInfraSetupFuncRegistry("postgres", setupTestInstancePostgres),
+		testutils.NewInfraSetupFuncRegistry("redis", setupTestInstanceRedis),
+		testutils.NewInfraSetupFuncRegistry("elasticsearch", setupTestInstanceElasticsearch),
+		testutils.NewInfraSetupFuncRegistry("kafka", setupTestInstanceKafka),
 	)
 	defer setup.Cleanup(context.Background())
 
@@ -204,23 +205,23 @@ func doTest(m *testing.M) (exitCode int) {
 	return m.Run()
 }
 
-func setupTestPostgres(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
+func setupTestInstancePostgres(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	instance := tc_testutils.NewTestPostgresContainer("e2e_test", "test", "test")
-	container, cleanupFunc, err := instance.CreatePostgresTestContainer()
+	container, cntCleanupFunc, err := instance.CreatePostgresTestContainer()
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	db, err := instance.CreatePostgresDBInstance(container)
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	if err := tc_testutils.ApplyDBMigrations(db); err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -228,12 +229,12 @@ func setupTestPostgres(ctx context.Context) (testutils.InfraSetupCleanupFunc, er
 
 	host, err := container.Host(timeoutCtx)
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	port, err := container.MappedPort(timeoutCtx, nat.Port("5432/tcp"))
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	os.Setenv("DB_HOST", host)
@@ -241,70 +242,153 @@ func setupTestPostgres(ctx context.Context) (testutils.InfraSetupCleanupFunc, er
 	os.Setenv("DB_USER", "test")
 	os.Setenv("DB_PASS", "test")
 	os.Setenv("DB_SSL_MODE", "disable")
-	os.Setenv("API_DB_SCHEMA_NAME", "e2e_test")
+
+	cleanupFunc := func(ctx context.Context) error {
+		err := cntCleanupFunc(ctx)
+		if err != nil {
+			return err
+		}
+		os.Unsetenv("DB_HOST")
+		os.Unsetenv("DB_PORT")
+		os.Unsetenv("DB_USER")
+		os.Unsetenv("DB_PASS")
+		os.Unsetenv("DB_SSL_MODE")
+		return nil
+	}
 	return cleanupFunc, nil
 }
 
-func setupTestRedis(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
+func setupTestInstanceRedis(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	instance := tc_testutils.NewTestRedisContainer()
-	container, cleanupFunc, err := instance.CreateRedisTestContainer("")
+	container, cntCleanupFunc, err := instance.CreateRedisTestContainer("")
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	connStr, err := instance.GetRedisConnectionString(container)
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	connOpt, err := redis.ParseURL(connStr)
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	os.Setenv("REDIS_HOST", connOpt.Addr)
 	os.Setenv("REDIS_DB", strconv.Itoa(connOpt.DB))
+
+	cleanupFunc := func(ctx context.Context) error {
+		err := cntCleanupFunc(ctx)
+		if err != nil {
+			return err
+		}
+		os.Unsetenv("REDIS_HOST")
+		os.Unsetenv("REDIS_DB")
+		return nil
+	}
 	return cleanupFunc, nil
 }
 
-func setupTestElasticsearch(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
+func setupTestInstanceElasticsearch(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	instance := tc_testutils.NewTestElasticsearchContainer()
-	container, cleanupFunc, err := instance.CreateElasticsearchTestContainer("")
+	container, cntCleanupFunc, err := instance.CreateElasticsearchTestContainer("")
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	addr := container.Settings.Address
 
 	os.Setenv("ELASTIC_HOST", addr)
 	os.Setenv("ELASTIC_POST_INDEX_NAME", "e2e_test_posts")
+
+	cleanupFunc := func(ctx context.Context) error {
+		err := cntCleanupFunc(ctx)
+		if err != nil {
+			return err
+		}
+		os.Unsetenv("ELASTIC_HOST")
+		os.Unsetenv("ELASTIC_POST_INDEX_NAME")
+		return nil
+	}
 	return cleanupFunc, nil
 }
 
-func setupTestKafka(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
+func setupTestInstanceKafka(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	instance := tc_testutils.NewTestKafkaContainer("e2e-test-kafka")
-	container, cleanupFunc, err := instance.CreateKafkaTestContainer()
+	container, cntCleanupFunc, err := instance.CreateKafkaTestContainer()
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	addr, err := instance.GetKafkaBrokerAddress(container)
 	if err != nil {
-		return cleanupFunc, err
+		return cntCleanupFunc, err
 	}
 
 	os.Setenv("KAFKA_HOST", addr)
-	os.Setenv("API_KAFKA_TOPIC", "e2e_test_posts")
+
+	cleanupFunc := func(ctx context.Context) error {
+		err := cntCleanupFunc(ctx)
+		if err != nil {
+			return err
+		}
+		os.Unsetenv("KAFKA_HOST")
+		return nil
+	}
 	return cleanupFunc, nil
+}
+
+func startSearchIndexerApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
+	var appFuncResponse testutils.AppSetupFuncResponse
+	if err := ctx.Err(); err != nil {
+		return appFuncResponse, err
+	}
+	consumerGroupId := "e2e-elasticsearch-indexer"
+	os.Setenv("APP_SEARCH_INDEXER_KAFKA_TOPIC", "e2e_test_posts")
+	os.Setenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID", consumerGroupId)
+	defer func() {
+		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_TOPIC")
+		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID")
+	}()
+
+	errChan := make(chan error, 2)
+	go func() {
+		err := search_indexer_app.ListenAndServe(ctx, "") //TODO
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}()
+	go func() {
+		broker := os.Getenv("KAFKA_HOST")
+		if broker == "" {
+			errChan <- fmt.Errorf("kafka broker not available")
+		}
+		if err := testutils.WaitForConsumerGroup(broker, consumerGroupId, 10*time.Second); err != nil {
+			errChan <- err
+		}
+		close(errChan) // close the errChan if port is accessible
+	}()
+
+	select {
+	case <-ctx.Done():
+		return appFuncResponse, fmt.Errorf("context cancelled. cancelled starting of startSearchIndexerApp")
+	case appErr := <-errChan:
+		if appErr != nil {
+			return appFuncResponse, appErr
+		}
+		return appFuncResponse, nil
+	}
 }
 
 func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
@@ -317,7 +401,14 @@ func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
 	if err != nil {
 		return appFuncResponse, fmt.Errorf("failed to get a free port: %w", err)
 	}
-	os.Setenv("API_PORT", port)
+	os.Setenv("APP_API_PORT", port)
+	os.Setenv("APP_API_KAFKA_TOPIC", "e2e_test_posts")
+	os.Setenv("APP_API_DB_SCHEMA_NAME", "e2e_test")
+	defer func() {
+		os.Unsetenv("APP_API_PORT")
+		os.Unsetenv("APP_API_KAFKA_TOPIC")
+		os.Unsetenv("APP_API_DB_SCHEMA_NAME")
+	}()
 
 	// Start the application in a goroutine
 	errChan := make(chan error, 2)
