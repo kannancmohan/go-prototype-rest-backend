@@ -26,6 +26,15 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	kafkaTopic               = "e2e_test_posts"
+	kafkaConsumerGroupId     = "e2e-elasticsearch-indexer"
+	elasticsearchIndexerName = "posts"
+	dbSchemaName             = "e2e_test"
+	dbUserName               = "test"
+	dbUserPwd                = "test"
+)
+
 var (
 	apiServerAddr string
 )
@@ -209,7 +218,7 @@ func setupTestInstancePostgres(ctx context.Context) (testutils.InfraSetupCleanup
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	instance := tc_testutils.NewTestPostgresContainer("e2e_test", "test", "test")
+	instance := tc_testutils.NewTestPostgresContainer(dbSchemaName, dbUserName, dbUserPwd)
 	container, cntCleanupFunc, err := instance.CreatePostgresTestContainer()
 	if err != nil {
 		return cntCleanupFunc, err
@@ -239,8 +248,8 @@ func setupTestInstancePostgres(ctx context.Context) (testutils.InfraSetupCleanup
 
 	os.Setenv("DB_HOST", host)
 	os.Setenv("DB_PORT", port.Port())
-	os.Setenv("DB_USER", "test")
-	os.Setenv("DB_PASS", "test")
+	os.Setenv("DB_USER", dbUserName)
+	os.Setenv("DB_PASS", dbUserPwd)
 	os.Setenv("DB_SSL_MODE", "disable")
 
 	cleanupFunc := func(ctx context.Context) error {
@@ -306,7 +315,7 @@ func setupTestInstanceElasticsearch(ctx context.Context) (testutils.InfraSetupCl
 	addr := container.Settings.Address
 
 	os.Setenv("ELASTIC_HOST", addr)
-	os.Setenv("ELASTIC_POST_INDEX_NAME", "e2etestposts")
+	os.Setenv("ELASTIC_POST_INDEX_NAME", elasticsearchIndexerName)
 
 	cleanupFunc := func(ctx context.Context) error {
 		err := cntCleanupFunc(ctx)
@@ -353,9 +362,8 @@ func startSearchIndexerApp(ctx context.Context) (testutils.AppSetupFuncResponse,
 	if err := ctx.Err(); err != nil {
 		return appFuncResponse, err
 	}
-	consumerGroupId := "e2e-elasticsearch-indexer"
-	os.Setenv("APP_SEARCH_INDEXER_KAFKA_TOPIC", "e2e_test_posts")
-	os.Setenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID", consumerGroupId)
+	os.Setenv("APP_SEARCH_INDEXER_KAFKA_TOPIC", kafkaTopic)
+	os.Setenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID", kafkaConsumerGroupId)
 	defer func() {
 		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_TOPIC")
 		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID")
@@ -374,7 +382,7 @@ func startSearchIndexerApp(ctx context.Context) (testutils.AppSetupFuncResponse,
 		if broker == "" {
 			errChan <- fmt.Errorf("kafka broker not available")
 		}
-		if err := testutils.WaitForConsumerGroup(broker, consumerGroupId, 10*time.Second); err != nil {
+		if err := testutils.WaitForConsumerGroup(broker, kafkaConsumerGroupId, 10*time.Second); err != nil {
 			errChan <- err
 		}
 		close(errChan) // close the errChan if port is accessible
@@ -402,8 +410,8 @@ func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
 		return appFuncResponse, fmt.Errorf("failed to get a free port: %w", err)
 	}
 	os.Setenv("APP_API_PORT", port)
-	os.Setenv("APP_API_KAFKA_TOPIC", "e2e_test_posts")
-	os.Setenv("APP_API_DB_SCHEMA_NAME", "e2e_test")
+	os.Setenv("APP_API_KAFKA_TOPIC", kafkaTopic)
+	os.Setenv("APP_API_DB_SCHEMA_NAME", dbSchemaName)
 	defer func() {
 		os.Unsetenv("APP_API_PORT")
 		os.Unsetenv("APP_API_KAFKA_TOPIC")
