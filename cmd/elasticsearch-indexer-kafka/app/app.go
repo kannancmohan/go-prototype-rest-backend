@@ -170,8 +170,8 @@ func initInfraResources(ctx context.Context, envName string) (*infraResource, er
 	//kafka
 	kafkaConsCfg := app_common.KafkaConsumerConfig{
 		Addr:             env.KafkaHost,
-		GroupID:          "elasticsearch-indexer",
-		AutoOffsetRest:   "earliest",
+		GroupID:          env.KafkaConsumerGroupId,
+		AutoOffsetRest:   env.KafkaAutoOffsetRest,
 		EnableAutoCommit: false,
 		Topics:           []string{env.KafkaConsumerTopic},
 	}
