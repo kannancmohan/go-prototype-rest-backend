@@ -10,6 +10,7 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
+	kafkatc "github.com/testcontainers/testcontainers-go/modules/kafka"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -88,7 +89,33 @@ func NewTestKafkaContainer(clusterID string) *testKafkaContainer {
 	return &testKafkaContainer{clusterID: clusterID}
 }
 
-func (e *testKafkaContainer) CreateKafkaTestContainer() (testcontainers.Container, func(ctx context.Context) error, error) {
+func (e *testKafkaContainer) CreateKafkaTestContainer2(ctx context.Context) (testcontainers.Container, func(ctx context.Context) error, error) {
+	tCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	ctr, err := kafkatc.Run(tCtx,
+		"confluentinc/confluent-local:7.5.0",
+		kafkatc.WithClusterID(e.clusterID),
+		testcontainers.WithWaitStrategy(
+			wait.ForListeningPort(nat.Port("9093/tcp")).SkipInternalCheck().WithStartupTimeout(30*time.Second),
+		),
+	)
+
+	if err != nil {
+		return ctr, func(ctx context.Context) error { return nil }, err
+	}
+
+	cleanupFunc := func(ctx context.Context) error {
+		err := ctr.Terminate(ctx)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+	return ctr, cleanupFunc, nil
+}
+
+func (e *testKafkaContainer) CreateKafkaTestContainer(ctx context.Context) (testcontainers.Container, func(ctx context.Context) error, error) {
 	tcExposedPort := kafkaExportedPort + "/tcp"
 
 	kafkaReq := testcontainers.ContainerRequest{
@@ -110,7 +137,7 @@ func (e *testKafkaContainer) CreateKafkaTestContainer() (testcontainers.Containe
 			WithStartupTimeout(1 * time.Minute),
 	}
 
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	ctr, err := testcontainers.GenericContainer(timeoutCtx, testcontainers.GenericContainerRequest{

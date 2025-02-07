@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime/debug"
 
 	"strconv"
 
@@ -19,21 +20,29 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/envvarsecret"
 )
 
-func ListenAndServe(envName string, stopChannels ...app_common.StopChan) error {
-	infra, err := initInfraResources(envName)
+func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_common.StopChan) (err error) {
+	defer func() { // Recover from panics and log the stack trace
+		if r := recover(); r != nil {
+			stackTrace := string(debug.Stack()) // Capture the stack trace
+			slog.Error("Recovered from panic", "panic", r, "stack_trace", stackTrace)
+			err = fmt.Errorf("panic occurred: %v", r) // Return the panic as an error
+		}
+	}()
+
+	infra, err := initInfraResources(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("error initializing infra resources: %w", err)
 	}
 	defer infra.Close() // Ensure resources are closed when main exits
 
-	store, err := initStoreResources(infra)
+	store, err := initStoreResources(ctx, infra)
 	if err != nil {
 		return fmt.Errorf("error initializing store resources: %w", err)
 	}
 
 	appServer := newAppServer(infra, store)
-	appServer.listenForStopChannels(stopChannels...)
-	if err := appServer.start(); err != nil {
+	appServer.listenForStopChannels(ctx, stopChannels...)
+	if err = appServer.start(); err != nil {
 		return err
 	}
 
@@ -50,9 +59,9 @@ func newAppServer(infra *infraResource, store storeResource) *appServer {
 	return &appServer{infra: infra, store: store, appStopChan: make(chan struct{})}
 }
 
-func (a *appServer) listenForStopChannels(stopChannels ...app_common.StopChan) {
+func (a *appServer) listenForStopChannels(ctx context.Context, stopChannels ...app_common.StopChan) {
 	go func() {
-		<-app_common.WaitForStopChan(context.Background(), stopChannels)
+		<-app_common.WaitForStopChan(ctx, stopChannels)
 		slog.Debug("external stop signal received in ListenForStopSignals")
 		//TODO check usage of a.appStopChan <- struct{}{} instead of close(a.appStopChan)
 		close(a.appStopChan) // send app stop signal
@@ -146,15 +155,15 @@ func newStoreResource(searchStore store.PostSearchIndexStore) storeResource {
 	return storeResource{searchStore: searchStore}
 }
 
-func initStoreResources(infra *infraResource) (storeResource, error) {
-	searchStore, err := elasticsearch.NewPostSearchIndexStore(infra.elasticsearch, infra.env.ElasticIndexName)
+func initStoreResources(ctx context.Context, infra *infraResource) (storeResource, error) {
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName)
 	if err != nil {
 		return storeResource{}, fmt.Errorf("error init PostSearchIndexStore: %w", err)
 	}
 	return newStoreResource(searchStore), nil
 }
 
-func initInfraResources(envName string) (*infraResource, error) {
+func initInfraResources(ctx context.Context, envName string) (*infraResource, error) {
 
 	//TODO run the following processes in goroutine
 	//get secrets
@@ -170,8 +179,8 @@ func initInfraResources(envName string) (*infraResource, error) {
 	//kafka
 	kafkaConsCfg := app_common.KafkaConsumerConfig{
 		Addr:             env.KafkaHost,
-		GroupID:          "elasticsearch-indexer",
-		AutoOffsetRest:   "earliest",
+		GroupID:          env.KafkaConsumerGroupId,
+		AutoOffsetRest:   env.KafkaAutoOffsetRest,
 		EnableAutoCommit: false,
 		Topics:           []string{env.KafkaConsumerTopic},
 	}

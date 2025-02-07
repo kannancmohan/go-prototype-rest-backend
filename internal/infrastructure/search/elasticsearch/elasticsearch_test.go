@@ -60,8 +60,8 @@ func TestPostSearchIndexStore_Index(t *testing.T) {
 		},
 	}
 
-	store, _ := elasticsearch.NewPostSearchIndexStore(testESClient, "test_posts_index")
 	ctx := context.Background()
+	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index")
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -100,8 +100,8 @@ func TestPostSearchIndexStore_Delete(t *testing.T) {
 		},
 	}
 
-	store, _ := elasticsearch.NewPostSearchIndexStore(testESClient, "test_posts_index")
 	ctx := context.Background()
+	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index")
 
 	// add test data to elasticsearch
 	err := store.Index(ctx, model.Post{
@@ -160,8 +160,8 @@ func TestPostSearchIndexStore_Search(t *testing.T) {
 		},
 	}
 
-	store, _ := elasticsearch.NewPostSearchIndexStore(testESClient, "test_posts_index")
 	ctx := context.Background()
+	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index")
 
 	// add two test data to elasticsearch
 	err := store.Index(ctx, model.Post{

@@ -27,7 +27,7 @@ var (
 func TestMain(m *testing.M) {
 	var err error
 	pgTest := tc_testutils.NewTestKafkaContainer(kafkaClusterId)
-	container, cleanupFunc, err := pgTest.CreateKafkaTestContainer()
+	container, cleanupFunc, err := pgTest.CreateKafkaTestContainer(context.Background())
 	if err != nil {
 		log.Fatalf("Failed to start kafka TestContainer: %v", err)
 	}

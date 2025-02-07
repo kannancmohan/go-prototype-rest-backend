@@ -27,7 +27,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func ListenAndServe(envName string, stopChannels ...app_common.StopChan) (err error) {
+func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_common.StopChan) (err error) {
 	defer func() { // Recover from panics and log the stack trace
 		if r := recover(); r != nil {
 			stackTrace := string(debug.Stack()) // Capture the stack trace
@@ -36,13 +36,13 @@ func ListenAndServe(envName string, stopChannels ...app_common.StopChan) (err er
 		}
 	}()
 
-	infra, err := initInfraResources(envName)
+	infra, err := initInfraResources(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("error initializing infra resources: %w", err)
 	}
 	defer infra.Close() // Ensure resources are closed when main exits
 
-	store, err := initStoreResources(infra)
+	store, err := initStoreResources(ctx, infra)
 	if err != nil {
 		return fmt.Errorf("error initializing store resources: %w", err)
 	}
@@ -52,11 +52,11 @@ func ListenAndServe(envName string, stopChannels ...app_common.StopChan) (err er
 
 	handler := handler.NewHandler(uService, pService)
 
-	router := api.NewRouter(handler, infra.env.ApiCorsAllowedOrigin)
+	router := api.NewRouter(handler, infra.env.AppCorsAllowedOrigin)
 	routes := router.RegisterHandlers()
 
-	appServer := newAppServer(infra.env.ApiAddr, routes)
-	appServer.listenForStopChannels(stopChannels...)
+	appServer := newAppServer(infra.env.AppAddr, routes)
+	appServer.listenForStopChannels(ctx, stopChannels...)
 	if err := appServer.start(); err != nil {
 		return err
 	}
@@ -70,9 +70,9 @@ type appServer struct {
 	httpServer  *http.Server
 }
 
-func newAppServer(apiAddr string, routes http.Handler) *appServer {
+func newAppServer(appAddr string, routes http.Handler) *appServer {
 	httpServer := &http.Server{
-		Addr:         apiAddr,
+		Addr:         appAddr,
 		Handler:      routes,
 		WriteTimeout: time.Second * 30,
 		ReadTimeout:  time.Second * 10,
@@ -81,9 +81,9 @@ func newAppServer(apiAddr string, routes http.Handler) *appServer {
 	return &appServer{name: "api", appStopChan: make(chan struct{}), httpServer: httpServer}
 }
 
-func (a *appServer) listenForStopChannels(stopChannels ...app_common.StopChan) {
+func (a *appServer) listenForStopChannels(ctx context.Context, stopChannels ...app_common.StopChan) {
 	go func() {
-		<-app_common.WaitForStopChan(context.Background(), stopChannels)
+		<-app_common.WaitForStopChan(ctx, stopChannels)
 		slog.Debug("external stop signal received in ListenForStopSignals")
 		//TODO check usage of a.appStopChan <- struct{}{} instead of close(a.appStopChan)
 		close(a.appStopChan) // send app stop signal
@@ -138,13 +138,14 @@ func newInfraResource(env *EnvVar, db *sql.DB, redis *redis.Client, kafkaProd *k
 
 func (i *infraResource) Close() {
 	if i.db != nil {
-		slog.Info("Closing db connection")
+		slog.Debug("Closing db connection")
 		i.db.Close()
 	}
 	if i.redis != nil {
-		slog.Info("Redis client connection closed")
+		slog.Debug("Redis client connection closed")
 		i.redis.Close()
 	}
+	slog.Info("finished infra connection cleanup")
 }
 
 type storeResource struct {
@@ -158,24 +159,24 @@ func newStoreResource(postStore store.PostDBStore, userStore store.UserDBStore, 
 	return storeResource{postStore: postStore, userStore: userStore, msgBrokerStore: msgBrokerStore, searchStore: searchStore}
 }
 
-func initStoreResources(infra *infraResource) (storeResource, error) {
-	pStore := postgres.NewPostDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
-	uStore := postgres.NewUserDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
+func initStoreResources(ctx context.Context, infra *infraResource) (storeResource, error) {
+	pStore := postgres.NewPostDBStore(infra.db, infra.env.AppDBQueryTimeoutDuration)
+	uStore := postgres.NewUserDBStore(infra.db, infra.env.AppDBQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
 
-	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(infra.kafkaProd, infra.env.KafkaProdTopic)
+	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(infra.kafkaProd, infra.env.AppKafkaProdTopic)
 
-	cachedPStore := redis_cache.NewPostStore(infra.redis, pStore, infra.env.ApiRedisCacheExpirationDuration)
-	cachedUStore := redis_cache.NewUserStore(infra.redis, uStore, infra.env.ApiRedisCacheExpirationDuration)
+	cachedPStore := redis_cache.NewPostStore(infra.redis, pStore, infra.env.AppRedisCacheExpirationDuration)
+	cachedUStore := redis_cache.NewUserStore(infra.redis, uStore, infra.env.AppRedisCacheExpirationDuration)
 
-	searchStore, err := elasticsearch.NewPostSearchIndexStore(infra.elasticsearch, infra.env.ElasticIndexName)
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName)
 	if err != nil {
 		return storeResource{}, fmt.Errorf("error init PostSearchIndexStore: %w", err)
 	}
 	return newStoreResource(cachedPStore, cachedUStore, messageBrokerStore, searchStore), nil
 }
 
-func initInfraResources(envName string) (*infraResource, error) {
+func initInfraResources(ctx context.Context, envName string) (*infraResource, error) {
 
 	//TODO run the following processes in goroutine
 	//get secrets
@@ -190,12 +191,12 @@ func initInfraResources(envName string) (*infraResource, error) {
 
 	//database
 	dbCfg := app_common.DBConfig{
-		Addr:         fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.DBPort, env.ApiDBName, env.DBSslMode),
-		MaxOpenConns: env.ApiDBMaxOpenConns,
-		MaxIdleConns: env.ApiDBMaxIdleConns,
-		MaxIdleTime:  env.ApiDBMaxIdleTime,
+		Addr:         fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.DBPort, env.AppDBName, env.DBSslMode),
+		MaxOpenConns: env.AppDBMaxOpenConns,
+		MaxIdleConns: env.AppDBMaxIdleConns,
+		MaxIdleTime:  env.AppDBMaxIdleTime,
 	}
-	db, err := dbCfg.NewConnection(context.Background())
+	db, err := dbCfg.NewConnection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error init db: %w", err)
 	}
@@ -206,7 +207,7 @@ func initInfraResources(envName string) (*infraResource, error) {
 		Addr: env.RedisHost,
 		DB:   redisDB,
 	}
-	redis, err := redisCfg.NewConnection(context.Background())
+	redis, err := redisCfg.NewConnection(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error init redis: %w", err)
 	}

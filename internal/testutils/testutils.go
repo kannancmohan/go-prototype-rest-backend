@@ -2,11 +2,14 @@ package testutils
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"net"
 	"strings"
 	"time"
+
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
 func GetFreePort() (string, error) {
@@ -48,4 +51,44 @@ func WaitForServerLog(reader io.Reader, logMessage string, timeout time.Duration
 		}
 	}
 	return scanner.Err()
+}
+
+// WaitForConsumerGroup waits for the Kafka consumer group to become active (Stable state with members)
+func WaitForConsumerGroup(broker, groupID string, timeout time.Duration) error {
+	if broker == "" || groupID == "" {
+		return fmt.Errorf("broker and groupID must not be empty")
+	}
+
+	adminClient, err := kafka.NewAdminClient(&kafka.ConfigMap{"bootstrap.servers": broker})
+	if err != nil {
+		return fmt.Errorf("failed to create admin client: %w", err)
+	}
+	defer adminClient.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), timeout) // Set up a context with the specified timeout
+	defer cancel()
+
+	pollInterval := 2 * time.Second // Polling interval for checking the consumer group status
+	for {                           // Loop until the context times out or the group becomes active
+		select {
+		case <-ctx.Done(): // Timeout reached
+			return fmt.Errorf("timed out waiting for consumer group %s to become active", groupID)
+		default:
+			groupMetadata, err := adminClient.DescribeConsumerGroups(ctx, []string{groupID})
+			if err != nil {
+				continue // continue on failed to describe consumer group
+			}
+
+			// Check if the group exists and is active
+			for _, group := range groupMetadata.ConsumerGroupDescriptions {
+				if group.Error.Code() != kafka.ErrNoError { // Handle group-specific errors (e.g., group doesn't exist)
+					continue // continue on failed to describe consumer group metadata
+				}
+				if group.State == kafka.ConsumerGroupStateStable && len(group.Members) > 0 {
+					return nil // consumer group is active
+				}
+			}
+			time.Sleep(pollInterval)
+		}
+	}
 }
