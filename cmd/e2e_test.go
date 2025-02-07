@@ -26,11 +26,113 @@ import (
 )
 
 var (
-	serverAddr string
+	apiServerAddr string
 )
 
 func TestMain(m *testing.M) {
 	os.Exit(doTest(m))
+}
+
+func TestUserEndpoints(t *testing.T) {
+	client := &http.Client{}
+
+	// create prerequisite user required for testing update,get and delete endpoints
+	user, err := sendAndGetResponseBody[model.User](apiServerAddr, client, testutils.HttpTestRequest{
+		Method:  "POST",
+		Path:    "/api/v1/authentication/user",
+		Headers: map[string]string{"Content-Type": "application/json"},
+		Body:    map[string]string{"username": "e2e_usertest_user01", "email": "e2e_usertest_user01@test.com", "password": "e2e_usertest_user01", "role": "admin"},
+	})
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
+	createTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_create_user.json", nil)
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	updateTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_update_user.json", map[string]interface{}{"userID": user.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	getTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_get_user.json", map[string]interface{}{"userID": user.ID, "userEmail": user.Email})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_delete_user.json", map[string]interface{}{"userID": user.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+
+	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			resp, err := testutils.SendRequest(apiServerAddr, client, tc.Request)
+			if err != nil {
+				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
+			}
+			defer resp.Body.Close()
+			validateResponse(t, resp, &tc.Expected, compareTestUser)
+		})
+	}
+}
+
+func TestPostsEndpoints(t *testing.T) {
+	client := &http.Client{}
+
+	// create prerequisite user before creating posts
+	user, err := sendAndGetResponseBody[model.User](apiServerAddr, client, testutils.HttpTestRequest{
+		Method:  "POST",
+		Path:    "/api/v1/authentication/user",
+		Headers: map[string]string{"Content-Type": "application/json"},
+		Body:    map[string]string{"username": "e2e_poststest_user01", "email": "e2e_poststest_user01@test.com", "password": "e2e_poststest_user01", "role": "admin"},
+	})
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
+	// create prerequisite post required for testing update,get and delete endpoints
+	post, err := sendAndGetResponseBody[model.Post](apiServerAddr, client, testutils.HttpTestRequest{
+		Method:  "POST",
+		Path:    "/api/v1/posts",
+		Headers: map[string]string{"Content-Type": "application/json"},
+		Body:    map[string]interface{}{"user_id": user.ID, "title": "e2e test title01", "content": "e2e test content01", "tags": []string{"e2e_test", "test01"}},
+	})
+	if err != nil {
+		t.Fatalf("failed to create test post: %v", err)
+	}
+
+	createTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_create_posts.json", map[string]interface{}{"userID": user.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	updateTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_update_posts.json", map[string]interface{}{"postID": post.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	getTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_get_posts.json", map[string]interface{}{"postID": post.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_delete_posts.json", map[string]interface{}{"postID": post.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+
+	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			resp, err := testutils.SendRequest(apiServerAddr, client, tc.Request)
+			if err != nil {
+				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
+			}
+			defer resp.Body.Close()
+			validateResponse(t, resp, &tc.Expected, compareTestUser)
+		})
+	}
+
 }
 
 func doTest(m *testing.M) (exitCode int) {
@@ -45,7 +147,8 @@ func doTest(m *testing.M) (exitCode int) {
 		}
 	}()
 
-	go func() { // Cancel context on receiving an os interrupt signal
+	// cancels the ctx on receiving os-interrupt signal. cancelling the ctx should trigger the context aware logics
+	go func() {
 		<-sysStopChan
 		fmt.Println("Received OS interrupt signal. Cancelling main context...")
 		cancel()
@@ -95,112 +198,10 @@ func doTest(m *testing.M) (exitCode int) {
 		log.Println("Apps failed with error")
 		return 1
 	}
-	serverAddr = apiAppResp.Addr
+	apiServerAddr = apiAppResp.Addr
 
 	// run the test
 	return m.Run()
-}
-
-func TestUserEndpoints(t *testing.T) {
-	client := &http.Client{}
-
-	// create prerequisite user required for testing update,get and delete endpoints
-	user, err := sendAndGetResponseBody[model.User](serverAddr, client, testutils.HttpTestRequest{
-		Method:  "POST",
-		Path:    "/api/v1/authentication/user",
-		Headers: map[string]string{"Content-Type": "application/json"},
-		Body:    map[string]string{"username": "e2e_usertest_user01", "email": "e2e_usertest_user01@test.com", "password": "e2e_usertest_user01", "role": "admin"},
-	})
-	if err != nil {
-		t.Fatalf("failed to create test user: %v", err)
-	}
-
-	createTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_create_user.json", nil)
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-	updateTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_update_user.json", map[string]interface{}{"userID": user.ID})
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-	getTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_get_user.json", map[string]interface{}{"userID": user.ID, "userEmail": user.Email})
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/user/test_case_delete_user.json", map[string]interface{}{"userID": user.ID})
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-
-	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
-
-	for _, tc := range testcases {
-		t.Run(tc.Name, func(t *testing.T) {
-			resp, err := testutils.SendRequest(serverAddr, client, tc.Request)
-			if err != nil {
-				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
-			}
-			defer resp.Body.Close()
-			validateResponse(t, resp, &tc.Expected, compareTestUser)
-		})
-	}
-}
-
-func TestPostsEndpoints(t *testing.T) {
-	client := &http.Client{}
-
-	// create prerequisite user before creating posts
-	user, err := sendAndGetResponseBody[model.User](serverAddr, client, testutils.HttpTestRequest{
-		Method:  "POST",
-		Path:    "/api/v1/authentication/user",
-		Headers: map[string]string{"Content-Type": "application/json"},
-		Body:    map[string]string{"username": "e2e_poststest_user01", "email": "e2e_poststest_user01@test.com", "password": "e2e_poststest_user01", "role": "admin"},
-	})
-	if err != nil {
-		t.Fatalf("failed to create test user: %v", err)
-	}
-
-	// create prerequisite post required for testing update,get and delete endpoints
-	post, err := sendAndGetResponseBody[model.Post](serverAddr, client, testutils.HttpTestRequest{
-		Method:  "POST",
-		Path:    "/api/v1/posts",
-		Headers: map[string]string{"Content-Type": "application/json"},
-		Body:    map[string]interface{}{"user_id": user.ID, "title": "e2e test title01", "content": "e2e test content01", "tags": []string{"e2e_test", "test01"}},
-	})
-	if err != nil {
-		t.Fatalf("failed to create test post: %v", err)
-	}
-
-	createTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_create_posts.json", map[string]interface{}{"userID": user.ID})
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-	updateTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_update_posts.json", map[string]interface{}{"postID": post.ID})
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-	getTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_get_posts.json", map[string]interface{}{"postID": post.ID})
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-	deleteTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_delete_posts.json", map[string]interface{}{"postID": post.ID})
-	if err != nil {
-		t.Fatalf("failed to load test cases: %v", err)
-	}
-
-	testcases := slices.Concat(createTC, updateTC, getTC, deleteTC)
-
-	for _, tc := range testcases {
-		t.Run(tc.Name, func(t *testing.T) {
-			resp, err := testutils.SendRequest(serverAddr, client, tc.Request)
-			if err != nil {
-				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
-			}
-			defer resp.Body.Close()
-			validateResponse(t, resp, &tc.Expected, compareTestUser)
-		})
-	}
-
 }
 
 func setupTestPostgres(ctx context.Context) (testutils.InfraSetupCleanupFunc, error) {
@@ -306,6 +307,48 @@ func setupTestKafka(ctx context.Context) (testutils.InfraSetupCleanupFunc, error
 	return cleanupFunc, nil
 }
 
+func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
+	var appFuncResponse testutils.AppSetupFuncResponse
+	if err := ctx.Err(); err != nil {
+		return appFuncResponse, err
+	}
+
+	port, err := testutils.GetFreePort()
+	if err != nil {
+		return appFuncResponse, fmt.Errorf("failed to get a free port: %w", err)
+	}
+	os.Setenv("API_PORT", port)
+
+	// Start the application in a goroutine
+	errChan := make(chan error, 2)
+	go func() {
+		err := api_app.ListenAndServe(ctx, "") //TODO
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}()
+	go func() {
+		if err := testutils.WaitForPort(port, 15*time.Second); err != nil {
+			errChan <- err
+		}
+		close(errChan) // close the errChan if port is accessible
+	}()
+
+	select {
+	case <-ctx.Done():
+		return appFuncResponse, fmt.Errorf("context cancelled. cancelled starting of startApiApp")
+	case appErr := <-errChan:
+		if appErr != nil {
+			return appFuncResponse, appErr
+		}
+		appFuncResponse = testutils.AppSetupFuncResponse{
+			Addr: fmt.Sprintf("http://localhost:%s", port),
+		}
+		return appFuncResponse, nil
+	}
+}
+
 func convertExpectedBody[T any](data any) (T, error) {
 	var v T
 	jsonData, err := json.Marshal(data)
@@ -383,46 +426,4 @@ func compareTestUser(expected, actual model.User) error {
 		return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
 	}
 	return nil
-}
-
-func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
-	var appFuncResponse testutils.AppSetupFuncResponse
-	if err := ctx.Err(); err != nil {
-		return appFuncResponse, err
-	}
-
-	port, err := testutils.GetFreePort()
-	if err != nil {
-		return appFuncResponse, fmt.Errorf("failed to get a free port: %w", err)
-	}
-	os.Setenv("API_PORT", port)
-
-	// Start the application in a goroutine
-	errChan := make(chan error, 2)
-	go func() {
-		err := api_app.ListenAndServe(ctx, "") //TODO
-		if err != nil {
-			errChan <- err
-			return
-		}
-	}()
-	go func() {
-		if err := testutils.WaitForPort(port, 15*time.Second); err != nil {
-			errChan <- err
-		}
-		close(errChan) // close the errChan if port is accessible
-	}()
-
-	select {
-	case <-ctx.Done():
-		return appFuncResponse, fmt.Errorf("context cancelled. cancelled starting of startApiApp")
-	case appErr := <-errChan:
-		if appErr != nil {
-			return appFuncResponse, appErr
-		}
-		appFuncResponse = testutils.AppSetupFuncResponse{
-			Addr: fmt.Sprintf("http://localhost:%s", port),
-		}
-		return appFuncResponse, nil
-	}
 }
