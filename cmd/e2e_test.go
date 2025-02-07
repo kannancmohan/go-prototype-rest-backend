@@ -35,9 +35,7 @@ const (
 	dbUserPwd                = "test"
 )
 
-var (
-	apiServerAddr string
-)
+var apiServerAddr string
 
 func TestMain(m *testing.M) {
 	os.Exit(doTest(m))
@@ -186,7 +184,7 @@ func doTest(m *testing.M) (exitCode int) {
 		log.Println("Setup done..")
 	}
 
-	apps := testutils.NewAppSetup().AddSetupFunc("api", startApiApp)
+	apps := testutils.NewAppSetup().WithAddSetupFunc("api", startApiApp)
 
 	go apps.Start(ctx)
 
@@ -334,7 +332,7 @@ func setupTestInstanceKafka(ctx context.Context) (testutils.InfraSetupCleanupFun
 		return nil, err
 	}
 	instance := tc_testutils.NewTestKafkaContainer("e2e-test-kafka")
-	container, cntCleanupFunc, err := instance.CreateKafkaTestContainer()
+	container, cntCleanupFunc, err := instance.CreateKafkaTestContainer(ctx)
 	if err != nil {
 		return cntCleanupFunc, err
 	}
@@ -382,7 +380,7 @@ func startSearchIndexerApp(ctx context.Context) (testutils.AppSetupFuncResponse,
 		if broker == "" {
 			errChan <- fmt.Errorf("kafka broker not available")
 		}
-		if err := testutils.WaitForConsumerGroup(broker, kafkaConsumerGroupId, 10*time.Second); err != nil {
+		if err := testutils.WaitForConsumerGroup(broker, kafkaConsumerGroupId, 30*time.Second); err != nil {
 			errChan <- err
 		}
 		close(errChan) // close the errChan if port is accessible

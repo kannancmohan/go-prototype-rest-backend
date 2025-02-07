@@ -103,7 +103,7 @@ func NewAppSetup() *appSetup {
 	return &appSetup{appSetupFuncRegistries: make(map[string]*appSetupFuncRegistry), DoneChan: make(chan struct{}), ErrChan: make(chan struct{})}
 }
 
-func (s *appSetup) AddSetupFunc(appName string, appSetupFunc AppSetupFunc) *appSetup {
+func (s *appSetup) WithAddSetupFunc(appName string, appSetupFunc AppSetupFunc) *appSetup {
 	if s.appSetupFuncRegistries == nil {
 		s.appSetupFuncRegistries = make(map[string]*appSetupFuncRegistry)
 	}

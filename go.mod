@@ -82,6 +82,7 @@ require (
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/testcontainers/testcontainers-go/modules/elasticsearch v0.35.0
+	github.com/testcontainers/testcontainers-go/modules/kafka v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/postgres v0.35.0
 	github.com/testcontainers/testcontainers-go/modules/redis v0.35.0
 	golang.org/x/net v0.34.0 // indirect
