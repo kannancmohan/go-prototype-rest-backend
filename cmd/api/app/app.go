@@ -52,7 +52,7 @@ func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_com
 
 	handler := handler.NewHandler(uService, pService)
 
-	router := api.NewRouter(handler, infra.env.ApiCorsAllowedOrigin)
+	router := api.NewRouter(handler, infra.env.AppCorsAllowedOrigin)
 	routes := router.RegisterHandlers()
 
 	appServer := newAppServer(infra.env.AppAddr, routes)
@@ -160,14 +160,14 @@ func newStoreResource(postStore store.PostDBStore, userStore store.UserDBStore, 
 }
 
 func initStoreResources(ctx context.Context, infra *infraResource) (storeResource, error) {
-	pStore := postgres.NewPostDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
-	uStore := postgres.NewUserDBStore(infra.db, infra.env.ApiDBQueryTimeoutDuration)
+	pStore := postgres.NewPostDBStore(infra.db, infra.env.AppDBQueryTimeoutDuration)
+	uStore := postgres.NewUserDBStore(infra.db, infra.env.AppDBQueryTimeoutDuration)
 	//rStore := store.NewRoleStore(db)
 
 	messageBrokerStore := infrastructure_kafka.NewPostMessageBrokerStore(infra.kafkaProd, infra.env.KafkaProdTopic)
 
-	cachedPStore := redis_cache.NewPostStore(infra.redis, pStore, infra.env.ApiRedisCacheExpirationDuration)
-	cachedUStore := redis_cache.NewUserStore(infra.redis, uStore, infra.env.ApiRedisCacheExpirationDuration)
+	cachedPStore := redis_cache.NewPostStore(infra.redis, pStore, infra.env.AppRedisCacheExpirationDuration)
+	cachedUStore := redis_cache.NewUserStore(infra.redis, uStore, infra.env.AppRedisCacheExpirationDuration)
 
 	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName)
 	if err != nil {
@@ -191,10 +191,10 @@ func initInfraResources(ctx context.Context, envName string) (*infraResource, er
 
 	//database
 	dbCfg := app_common.DBConfig{
-		Addr:         fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.DBPort, env.ApiDBName, env.DBSslMode),
-		MaxOpenConns: env.ApiDBMaxOpenConns,
-		MaxIdleConns: env.ApiDBMaxIdleConns,
-		MaxIdleTime:  env.ApiDBMaxIdleTime,
+		Addr:         fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", env.DBUser, env.DBPass, env.DBHost, env.DBPort, env.AppDBName, env.DBSslMode),
+		MaxOpenConns: env.AppDBMaxOpenConns,
+		MaxIdleConns: env.AppDBMaxIdleConns,
+		MaxIdleTime:  env.AppDBMaxIdleTime,
 	}
 	db, err := dbCfg.NewConnection(ctx)
 	if err != nil {
