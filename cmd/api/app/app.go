@@ -55,7 +55,7 @@ func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_com
 	router := api.NewRouter(handler, infra.env.ApiCorsAllowedOrigin)
 	routes := router.RegisterHandlers()
 
-	appServer := newAppServer(infra.env.ApiAddr, routes)
+	appServer := newAppServer(infra.env.AppAddr, routes)
 	appServer.listenForStopChannels(ctx, stopChannels...)
 	if err := appServer.start(); err != nil {
 		return err
@@ -70,9 +70,9 @@ type appServer struct {
 	httpServer  *http.Server
 }
 
-func newAppServer(apiAddr string, routes http.Handler) *appServer {
+func newAppServer(appAddr string, routes http.Handler) *appServer {
 	httpServer := &http.Server{
-		Addr:         apiAddr,
+		Addr:         appAddr,
 		Handler:      routes,
 		WriteTimeout: time.Second * 30,
 		ReadTimeout:  time.Second * 10,

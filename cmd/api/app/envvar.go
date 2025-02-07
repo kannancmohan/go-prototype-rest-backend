@@ -8,7 +8,7 @@ import (
 )
 
 type EnvVar struct {
-	ApiAddr                         string
+	AppAddr                         string
 	LogLevel                        string
 	DBHost                          string
 	DBPort                          string
@@ -32,12 +32,12 @@ type EnvVar struct {
 
 // string representation to hide sensitive fields.
 func (e EnvVar) String() string {
-	return fmt.Sprintf("EnvVar{ApiAddr: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, RedisHost: %s, RedisDB: %s}", e.ApiAddr, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.RedisHost, e.RedisDB)
+	return fmt.Sprintf("EnvVar{AppAddr: %s, LogLevel: %s, DBHost: %s, DBPort: %s, DBUser: [REDACTED], DBPass: [REDACTED], DBSslMode: [REDACTED], ApiCorsAllowedOrigin: %s, RedisHost: %s, RedisDB: %s}", e.AppAddr, e.LogLevel, e.DBHost, e.DBPort, e.ApiCorsAllowedOrigin, e.RedisHost, e.RedisDB)
 }
 
 func initEnvVar(sec store.SecretFetchStore) *EnvVar {
 	return &EnvVar{
-		ApiAddr:                   fmt.Sprintf(":%s", sec.GetEnvString("API_PORT", "8080")),
+		AppAddr:                   fmt.Sprintf(":%s", sec.GetEnvString("API_PORT", "8080")),
 		LogLevel:                  sec.GetEnvString("LOG_LEVEL", "info"), // supported values DEBUG,INFO,WARN,ERROR
 		DBHost:                    sec.GetEnvString("DB_HOST", "192.168.0.30"),
 		DBPort:                    sec.GetEnvString("DB_PORT", "5432"),
