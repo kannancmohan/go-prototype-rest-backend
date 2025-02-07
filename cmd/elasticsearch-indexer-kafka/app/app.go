@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"runtime/debug"
 
 	"strconv"
 
@@ -19,7 +20,15 @@ import (
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/infrastructure/secret/envvarsecret"
 )
 
-func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_common.StopChan) error {
+func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_common.StopChan) (err error) {
+	defer func() { // Recover from panics and log the stack trace
+		if r := recover(); r != nil {
+			stackTrace := string(debug.Stack()) // Capture the stack trace
+			slog.Error("Recovered from panic", "panic", r, "stack_trace", stackTrace)
+			err = fmt.Errorf("panic occurred: %v", r) // Return the panic as an error
+		}
+	}()
+
 	infra, err := initInfraResources(ctx, envName)
 	if err != nil {
 		return fmt.Errorf("error initializing infra resources: %w", err)
@@ -33,7 +42,7 @@ func ListenAndServe(ctx context.Context, envName string, stopChannels ...app_com
 
 	appServer := newAppServer(infra, store)
 	appServer.listenForStopChannels(ctx, stopChannels...)
-	if err := appServer.start(); err != nil {
+	if err = appServer.start(); err != nil {
 		return err
 	}
 

@@ -196,7 +196,7 @@ func doTest(m *testing.M) (exitCode int) {
 	//get the server address for api app
 	apiAppResp, err := apps.GetAppSetupFunResponse("api")
 	if err != nil {
-		log.Println("Apps failed with error")
+		log.Println("failed - missing required api app server address in appsetup response")
 		return 1
 	}
 	apiServerAddr = apiAppResp.Addr
@@ -306,7 +306,7 @@ func setupTestInstanceElasticsearch(ctx context.Context) (testutils.InfraSetupCl
 	addr := container.Settings.Address
 
 	os.Setenv("ELASTIC_HOST", addr)
-	os.Setenv("ELASTIC_POST_INDEX_NAME", "e2e_test_posts")
+	os.Setenv("ELASTIC_POST_INDEX_NAME", "e2etestposts")
 
 	cleanupFunc := func(ctx context.Context) error {
 		err := cntCleanupFunc(ctx)

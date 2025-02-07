@@ -23,6 +23,7 @@ func NewInfraSetup(setupFuncRegistries ...*infraSetupFuncRegistry) *infraSetup {
 }
 
 func (s *infraSetup) Start(ctx context.Context) {
+	var once sync.Once // Ensure SetupErrChan is closed only once
 	tCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
@@ -33,16 +34,16 @@ func (s *infraSetup) Start(ctx context.Context) {
 			defer setupWG.Done()
 			if err := ctx.Err(); err != nil { //skip in case ctx is cancelled/timeout
 				log.Printf("Skipping setup of %s container: %v", name, err)
-				close(s.SetupErrChan) // notify that there was error in setup
+				once.Do(func() { close(s.SetupErrChan) }) // notify that there was error in setup
 				return
 			}
 			cleanup, err := setupFunc(ctx)
 			setupReg.addInfraSetupCleanupFunc(cleanup)
 			if err != nil {
-				log.Printf("Failed to start %s container: %v", name, err)
-				cancel()              // Cancel the context so as other setup could be stopped
-				close(s.SetupErrChan) // notify that there was error in setup
-				return                // return from goroutine
+				log.Printf("Failed to start container:%s. error:%v", name, err)
+				cancel()                                  // Cancel the context so as other setup could be stopped
+				once.Do(func() { close(s.SetupErrChan) }) // notify that there was error in setup
+				return                                    // return from goroutine
 			}
 			log.Printf("Successfully started %s container", name)
 		}(tCtx, setupReg.name, setupReg.setupFunc)
@@ -52,7 +53,7 @@ func (s *infraSetup) Start(ctx context.Context) {
 }
 
 func (s *infraSetup) Cleanup(ctx context.Context) {
-	log.Print("Invoking cleanup...")
+	log.Print("Invoking infraSetup cleanup...")
 	var cleanupWG sync.WaitGroup
 	for _, setupReg := range s.setupFuncRegistries {
 		cleanupWG.Add(1)
@@ -119,6 +120,7 @@ func (s *appSetup) GetAppSetupFunResponse(appName string) (AppSetupFuncResponse,
 }
 
 func (s *appSetup) Start(ctx context.Context) {
+	var once sync.Once // Ensure ErrChan is closed only once
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
@@ -129,15 +131,15 @@ func (s *appSetup) Start(ctx context.Context) {
 			defer setupWG.Done()
 			if err := ctx.Err(); err != nil { //skip in case ctx is cancelled/timeout
 				log.Printf("Skipping setup of %s app: %v", name, err)
-				close(s.ErrChan) // notify that there was error in setup
+				once.Do(func() { close(s.ErrChan) }) // notify that there was error in setup
 				return
 			}
 			resp, err := setupFunc(ctx)
 			if err != nil {
-				log.Printf("Failed to start %s app: %v", name, err)
-				cancel()         // Cancel the context so as other setup could be stopped
-				close(s.ErrChan) // notify that there was error in setup
-				return           // return from goroutine
+				log.Printf("Failed to start app:%s. error:%v", name, err)
+				cancel()                             // Cancel the context so as other setup could be stopped
+				once.Do(func() { close(s.ErrChan) }) // notify that there was error in setup
+				return                               // return from goroutine
 			}
 			setupReg.addAppSetupFuncResponse(resp)
 			log.Printf("Successfully started %s app", name)
