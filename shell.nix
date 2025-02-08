@@ -70,12 +70,18 @@ pkgs.mkShellNoCC {
                     ssh-add ~/.ssh/id_ed25519
                 fi
 
-                ## SSH tunneling to remote host for using its docker instance 
+                ## Two options to connect to remote docker(both requires ssh access rights to remote docker)
+                
+                ### option1 : SSH tunneling to remote host for using its docker instance 
                 rm -f /tmp/remote-docker-gotest.sock # remove remote-docker-gotest.sock if it already exists 
                 ssh -f -N -L /tmp/remote-docker-gotest.sock:/var/run/docker.sock $sshUser@$sshIp # do the ssh tunneling
-                
-                ## Set Docker and testcontainers env variables
                 export DOCKER_HOST=unix:///tmp/remote-docker-gotest.sock
+
+                ### option2 : Set DOCKER_HOST using ssh url
+                # make sure your remote docker has tcp enabled(potential security risk) because programs such as testcontainers is still using tcp to check docker status 
+                #export DOCKER_HOST=${remoteDockerHost}
+                
+                ## Set testcontainers env variables
                 export TESTCONTAINERS_HOST_OVERRIDE=$sshIp
                 #export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
                 export TESTCONTAINERS_RYUK_DISABLED=true # disabling ryuk for now. Reason: ryuk port binding is failing for some reason
