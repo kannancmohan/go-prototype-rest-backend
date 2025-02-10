@@ -1,6 +1,10 @@
 package app_common
 
-import "github.com/confluentinc/confluent-kafka-go/v2/kafka"
+import (
+	"log/slog"
+
+	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+)
 
 type KafkaProducerConfig struct {
 	Addr string
@@ -38,10 +42,12 @@ func (d *KafkaConsumerConfig) NewKafkaConsumer() (*kafka.Consumer, error) {
 	if err != nil {
 		return nil, err
 	}
+	slog.Debug("kafka consumer created", "groupID", d.GroupID)
 
 	if err := client.SubscribeTopics(d.Topics, nil); err != nil {
 		return nil, err
 	}
+	slog.Debug("kafka consumer subscribed to topic", "topic", d.Topics)
 
 	return client, nil
 

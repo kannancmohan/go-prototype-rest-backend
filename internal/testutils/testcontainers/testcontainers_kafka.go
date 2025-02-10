@@ -79,8 +79,6 @@ func VerifyKafkaMessage[V any](t *testing.T, consumer *kafka.Consumer, expectedM
 	}
 }
 
-const kafkaExportedPort string = "9092"
-
 type testKafkaContainer struct {
 	clusterID string
 }
@@ -89,12 +87,12 @@ func NewTestKafkaContainer(clusterID string) *testKafkaContainer {
 	return &testKafkaContainer{clusterID: clusterID}
 }
 
-func (e *testKafkaContainer) CreateKafkaTestContainer2(ctx context.Context) (testcontainers.Container, func(ctx context.Context) error, error) {
+func (e *testKafkaContainer) CreateKafkaTestContainer(ctx context.Context) (*kafkatc.KafkaContainer, func(ctx context.Context) error, error) {
 	tCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	ctr, err := kafkatc.Run(tCtx,
-		"confluentinc/confluent-local:7.5.0",
+		"confluentinc/confluent-local:7.8.0",
 		kafkatc.WithClusterID(e.clusterID),
 		testcontainers.WithWaitStrategy(
 			wait.ForListeningPort(nat.Port("9093/tcp")).SkipInternalCheck().WithStartupTimeout(30*time.Second),
@@ -113,65 +111,4 @@ func (e *testKafkaContainer) CreateKafkaTestContainer2(ctx context.Context) (tes
 		return nil
 	}
 	return ctr, cleanupFunc, nil
-}
-
-func (e *testKafkaContainer) CreateKafkaTestContainer(ctx context.Context) (testcontainers.Container, func(ctx context.Context) error, error) {
-	tcExposedPort := kafkaExportedPort + "/tcp"
-
-	kafkaReq := testcontainers.ContainerRequest{
-		Image:        "confluentinc/confluent-local:7.5.0",
-		ExposedPorts: []string{tcExposedPort},
-		Env: map[string]string{
-			"KAFKA_PROCESS_ROLES": "broker,controller",
-			// "KAFKA_CONTROLLER_QUORUM_VOTERS":      "1@localhost:9093",
-			// "KAFKA_LISTENERS":                     "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093",
-			// "KAFKA_ADVERTISED_LISTENERS":          "PLAINTEXT://192.168.0.30:9092",
-			// "KAFKA_CONTROLLER_LISTENER_NAMES":     "CONTROLLER",
-			"KAFKA_CLUSTER_ID":                       e.clusterID,
-			"KAFKA_AUTO_CREATE_TOPICS_ENABLE":        "true",
-			"KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR": "1",
-			"KAFKA_LOG_RETENTION_HOURS":              "1", // Optional: Shorten log retention for testing
-		},
-		WaitingFor: wait.ForListeningPort(nat.Port(tcExposedPort)).
-			SkipInternalCheck().
-			WithStartupTimeout(1 * time.Minute),
-	}
-
-	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-
-	ctr, err := testcontainers.GenericContainer(timeoutCtx, testcontainers.GenericContainerRequest{
-		ContainerRequest: kafkaReq,
-		Started:          true,
-	})
-
-	if err != nil {
-		return ctr, func(ctx context.Context) error { return nil }, err
-	}
-
-	cleanupFunc := func(ctx context.Context) error {
-		err := ctr.Terminate(ctx)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-	return ctr, cleanupFunc, nil
-}
-
-func (e *testKafkaContainer) GetKafkaBrokerAddress(container testcontainers.Container) (string, error) {
-
-	timeoutCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	_, err := container.MappedPort(timeoutCtx, nat.Port(kafkaExportedPort))
-	if err != nil {
-		return "", err
-	}
-
-	broker, err := container.PortEndpoint(timeoutCtx, nat.Port(kafkaExportedPort+"/tcp"), "")
-	if err != nil {
-		return "", err
-	}
-	return broker, nil
 }

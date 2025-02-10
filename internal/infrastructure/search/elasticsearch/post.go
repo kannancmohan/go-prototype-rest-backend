@@ -223,7 +223,7 @@ func ensureIndexExists(ctx context.Context, client *esv8.Client, index string) e
 	if resp.IsError() {
 		// If index does not exist, create it with proper mapping
 		if resp.StatusCode == http.StatusNotFound {
-			if err := createIndexWithMapping(ctx, client, index); err != nil {
+			if err := createIndexWithMapping(ctx, client, index); err != nil && !isResourceAlreadyExistsError(err) {
 				return err
 			}
 		} else {
@@ -231,6 +231,13 @@ func ensureIndexExists(ctx context.Context, client *esv8.Client, index string) e
 		}
 	}
 	return nil
+}
+
+func isResourceAlreadyExistsError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "resource_already_exists_exception")
 }
 
 func createIndexWithMapping(ctx context.Context, client *esv8.Client, index string) error {

@@ -1,0 +1,151 @@
+[
+    {
+        "name": "Search Posts: With valid tag ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "tags": ["searchposttest01"]
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "total": 1,
+                "results": [
+                    {
+                        "id": "{{.postID}}"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "name": "Search Posts: With valid title ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "title": "e2e-searchposttest-title01"
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "total": 1,
+                "results": [
+                    {
+                        "id": "{{.postID}}"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "name": "Search Posts: With valid content ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "content": "e2e searchposttest content01"
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "total": 1,
+                "results": [
+                    {
+                        "id": "{{.postID}}"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "name": "Search Posts: With valid userID ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "user_id": {{.userID | toJSON}}
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "total": 1,
+                "results": [
+                    {
+                        "id": "{{.postID}}"
+                    }
+                ]
+            }
+        }
+    },
+    {
+        "name": "Search Posts: With Invalid userID ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "user_id": 999999999
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "total": 0
+            }
+        }
+    },
+    {
+        "name": "Search Posts: With missing tag ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "tags": ["missing-tag"]
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "total": 0
+            }
+        }
+    },
+    {
+        "name": "Search Posts: With invalid request ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+            }
+        },
+        "expected": {
+            "status": 400
+        }
+    }
+]

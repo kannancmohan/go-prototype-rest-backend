@@ -54,7 +54,7 @@ func WaitForServerLog(reader io.Reader, logMessage string, timeout time.Duration
 }
 
 // WaitForConsumerGroup waits for the Kafka consumer group to become active (Stable state with members)
-func WaitForConsumerGroup(broker, groupID string, timeout time.Duration) error {
+func WaitForConsumerGroup(ctx context.Context, broker, groupID string, timeout time.Duration) error {
 	if broker == "" || groupID == "" {
 		return fmt.Errorf("broker and groupID must not be empty")
 	}
@@ -65,7 +65,7 @@ func WaitForConsumerGroup(broker, groupID string, timeout time.Duration) error {
 	}
 	defer adminClient.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout) // Set up a context with the specified timeout
+	ctx, cancel := context.WithTimeout(ctx, timeout) // Set up a context with the specified timeout
 	defer cancel()
 
 	pollInterval := 2 * time.Second // Polling interval for checking the consumer group status
@@ -83,10 +83,12 @@ func WaitForConsumerGroup(broker, groupID string, timeout time.Duration) error {
 			for _, group := range groupMetadata.ConsumerGroupDescriptions {
 				if group.Error.Code() != kafka.ErrNoError { // Handle group-specific errors (e.g., group doesn't exist)
 					continue // continue on failed to describe consumer group metadata
-				}
-				if group.State == kafka.ConsumerGroupStateStable && len(group.Members) > 0 {
+				} else {
 					return nil // consumer group is active
 				}
+				// if group.State == kafka.ConsumerGroupStateStable && len(group.Members) > 0 {
+				// 	return nil // consumer group is active
+				// }
 			}
 			time.Sleep(pollInterval)
 		}

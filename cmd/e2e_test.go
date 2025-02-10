@@ -21,6 +21,7 @@ import (
 	search_indexer_app "github.com/kannancmohan/go-prototype-rest-backend/cmd/elasticsearch-indexer-kafka/app"
 	app_common "github.com/kannancmohan/go-prototype-rest-backend/cmd/internal/common"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/model"
+	"github.com/kannancmohan/go-prototype-rest-backend/internal/common/domain/store"
 	"github.com/kannancmohan/go-prototype-rest-backend/internal/testutils"
 	tc_testutils "github.com/kannancmohan/go-prototype-rest-backend/internal/testutils/testcontainers"
 	"github.com/redis/go-redis/v9"
@@ -143,6 +144,51 @@ func TestPostsEndpoints(t *testing.T) {
 
 }
 
+func TestSearchPostsEndpoints(t *testing.T) {
+	client := &http.Client{}
+
+	// create prerequisite user before creating posts
+	user, err := sendAndGetResponseBody[model.User](apiServerAddr, client, testutils.HttpTestRequest{
+		Method:  "POST",
+		Path:    "/api/v1/authentication/user",
+		Headers: map[string]string{"Content-Type": "application/json"},
+		Body:    map[string]string{"username": "e2e_searchpoststest_user01", "email": "e2e_searchpoststest_user01@test.com", "password": "e2e_searchpoststest_user01", "role": "admin"},
+	})
+	if err != nil {
+		t.Fatalf("failed to create test user: %v", err)
+	}
+
+	// create prerequisite post required for testing search endpoint
+	post, err := sendAndGetResponseBody[model.Post](apiServerAddr, client, testutils.HttpTestRequest{
+		Method:  "POST",
+		Path:    "/api/v1/posts",
+		Headers: map[string]string{"Content-Type": "application/json"},
+		Body:    map[string]interface{}{"user_id": user.ID, "title": "e2e-searchposttest-title01", "content": "e2e searchposttest content01", "tags": []string{"e2e_test", "searchposttest01"}},
+	})
+	if err != nil {
+		t.Fatalf("failed to create test post: %v", err)
+	}
+
+	searchTC, err := testutils.LoadTestCases("./e2e_testdata/posts/test_case_search_posts.json", map[string]interface{}{"userID": user.ID, "postID": post.ID})
+	if err != nil {
+		t.Fatalf("failed to load test cases: %v", err)
+	}
+
+	time.Sleep(3 * time.Second) // wait for few seconds so that the above post could be consumed by kafka and indexed to elasticsearch
+
+	for _, tc := range searchTC {
+		t.Run(tc.Name, func(t *testing.T) {
+			resp, err := testutils.SendRequest(apiServerAddr, client, tc.Request)
+			if err != nil {
+				t.Fatalf("failed to send request for test:%s. received (error: %v)", tc.Name, err)
+			}
+			defer resp.Body.Close()
+			validateResponse(t, resp, &tc.Expected, comparePostSearchResponse)
+		})
+	}
+
+}
+
 func doTest(m *testing.M) (exitCode int) {
 	sysStopChan := app_common.SysInterruptStopChan()        // Create a chan to capture os interrupt signal
 	ctx, cancel := context.WithCancel(context.Background()) // Create a cancelable context
@@ -184,7 +230,7 @@ func doTest(m *testing.M) (exitCode int) {
 		log.Println("Setup done..")
 	}
 
-	apps := testutils.NewAppSetup().WithAddSetupFunc("api", startApiApp)
+	apps := testutils.NewAppSetup().WithAddSetupFunc("api", startApiApp).WithAddSetupFunc("search-indexer", startSearchIndexerApp)
 
 	go apps.Start(ctx)
 
@@ -337,12 +383,12 @@ func setupTestInstanceKafka(ctx context.Context) (testutils.InfraSetupCleanupFun
 		return cntCleanupFunc, err
 	}
 
-	addr, err := instance.GetKafkaBrokerAddress(container)
+	addresses, err := container.Brokers(ctx)
 	if err != nil {
 		return cntCleanupFunc, err
 	}
 
-	os.Setenv("KAFKA_HOST", addr)
+	os.Setenv("KAFKA_HOST", addresses[0])
 
 	cleanupFunc := func(ctx context.Context) error {
 		err := cntCleanupFunc(ctx)
@@ -353,48 +399,6 @@ func setupTestInstanceKafka(ctx context.Context) (testutils.InfraSetupCleanupFun
 		return nil
 	}
 	return cleanupFunc, nil
-}
-
-func startSearchIndexerApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
-	var appFuncResponse testutils.AppSetupFuncResponse
-	if err := ctx.Err(); err != nil {
-		return appFuncResponse, err
-	}
-	os.Setenv("APP_SEARCH_INDEXER_KAFKA_TOPIC", kafkaTopic)
-	os.Setenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID", kafkaConsumerGroupId)
-	defer func() {
-		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_TOPIC")
-		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID")
-	}()
-
-	errChan := make(chan error, 2)
-	go func() {
-		err := search_indexer_app.ListenAndServe(ctx, "") //TODO
-		if err != nil {
-			errChan <- err
-			return
-		}
-	}()
-	go func() {
-		broker := os.Getenv("KAFKA_HOST")
-		if broker == "" {
-			errChan <- fmt.Errorf("kafka broker not available")
-		}
-		if err := testutils.WaitForConsumerGroup(broker, kafkaConsumerGroupId, 30*time.Second); err != nil {
-			errChan <- err
-		}
-		close(errChan) // close the errChan if port is accessible
-	}()
-
-	select {
-	case <-ctx.Done():
-		return appFuncResponse, fmt.Errorf("context cancelled. cancelled starting of startSearchIndexerApp")
-	case appErr := <-errChan:
-		if appErr != nil {
-			return appFuncResponse, appErr
-		}
-		return appFuncResponse, nil
-	}
 }
 
 func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
@@ -441,6 +445,48 @@ func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
 		}
 		appFuncResponse = testutils.AppSetupFuncResponse{
 			Addr: fmt.Sprintf("http://localhost:%s", port),
+		}
+		return appFuncResponse, nil
+	}
+}
+
+func startSearchIndexerApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
+	var appFuncResponse testutils.AppSetupFuncResponse
+	if err := ctx.Err(); err != nil {
+		return appFuncResponse, err
+	}
+	os.Setenv("APP_SEARCH_INDEXER_KAFKA_TOPIC", kafkaTopic)
+	os.Setenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID", kafkaConsumerGroupId)
+	defer func() {
+		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_TOPIC")
+		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID")
+	}()
+
+	errChan := make(chan error, 2)
+	go func() {
+		err := search_indexer_app.ListenAndServe(ctx, "") //TODO
+		if err != nil {
+			errChan <- err
+			return
+		}
+	}()
+	go func() {
+		broker := os.Getenv("KAFKA_HOST")
+		if broker == "" {
+			errChan <- fmt.Errorf("kafka broker not available")
+		}
+		if err := testutils.WaitForConsumerGroup(ctx, broker, kafkaConsumerGroupId, 30*time.Second); err != nil {
+			errChan <- err
+		}
+		close(errChan) // close the errChan if port is accessible
+	}()
+
+	select {
+	case <-ctx.Done():
+		return appFuncResponse, fmt.Errorf("context cancelled. cancelled starting of startSearchIndexerApp")
+	case appErr := <-errChan:
+		if appErr != nil {
+			return appFuncResponse, appErr
 		}
 		return appFuncResponse, nil
 	}
@@ -520,6 +566,25 @@ func compareTestUser(expected, actual model.User) error {
 	var isUserNameInvalid = (expected.Username != "" && actual.Username != expected.Username)
 	var isEmailInvalid = (expected.Email != "" && actual.Email != expected.Email)
 	if actual.ID < 1 || isUserNameInvalid || isEmailInvalid {
+		return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
+	}
+	return nil
+}
+
+func comparePostSearchResponse(expected, actual store.PostSearchResp) error {
+	isResultsValid := func(expected, actual []store.IndexedPost) bool {
+		if len(expected) != len(actual) {
+			return false
+		}
+		for i, v := range expected {
+			actualPost := actual[i]
+			if actualPost.ID != v.ID {
+				return false
+			}
+		}
+		return true
+	}
+	if expected.Total != actual.Total || !isResultsValid(expected.Results, actual.Results) {
 		return fmt.Errorf("Expected response body:%v,instead received body:%v", expected, actual)
 	}
 	return nil
