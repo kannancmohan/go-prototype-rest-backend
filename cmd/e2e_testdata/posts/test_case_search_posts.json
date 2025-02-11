@@ -1,5 +1,20 @@
 [
     {
+        "name": "Search Posts: With invalid request ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+            }
+        },
+        "expected": {
+            "status": 400
+        }
+    },
+    {
         "name": "Search Posts: With valid tag ",
         "request": {
             "method": "POST",
@@ -24,6 +39,25 @@
         }
     },
     {
+        "name": "Search Posts: With missing tag ",
+        "request": {
+            "method": "POST",
+            "path": "/api/v1/search/posts",
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": {
+                "tags": ["missing-tag"]
+            }
+        },
+        "expected": {
+            "status": 200,
+            "body": {
+                "total": 0
+            }
+        }
+    },
+    {
         "name": "Search Posts: With valid title ",
         "request": {
             "method": "POST",
@@ -32,7 +66,7 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "title": "e2e-searchposttest-title01"
+                "title": "searchposttest_title"
             }
         },
         "expected": {
@@ -56,7 +90,7 @@
                 "Content-Type": "application/json"
             },
             "body": {
-                "content": "e2e searchposttest content01"
+                "content": "searchposttest_content"
             }
         },
         "expected": {
@@ -112,40 +146,6 @@
             "body": {
                 "total": 0
             }
-        }
-    },
-    {
-        "name": "Search Posts: With missing tag ",
-        "request": {
-            "method": "POST",
-            "path": "/api/v1/search/posts",
-            "headers": {
-                "Content-Type": "application/json"
-            },
-            "body": {
-                "tags": ["missing-tag"]
-            }
-        },
-        "expected": {
-            "status": 200,
-            "body": {
-                "total": 0
-            }
-        }
-    },
-    {
-        "name": "Search Posts: With invalid request ",
-        "request": {
-            "method": "POST",
-            "path": "/api/v1/search/posts",
-            "headers": {
-                "Content-Type": "application/json"
-            },
-            "body": {
-            }
-        },
-        "expected": {
-            "status": 400
         }
     }
 ]

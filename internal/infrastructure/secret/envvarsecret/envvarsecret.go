@@ -37,6 +37,18 @@ func (s *secretFetchStore) GetEnvDuration(key, fallback string) time.Duration {
 	return duration
 }
 
+func (s *secretFetchStore) GetEnvBool(key, fallback string) bool {
+	strValue := strings.ToLower(strings.TrimSpace(s.GetEnvString(key, fallback)))
+	switch strValue {
+	case "true", "yes", "1", "t", "y":
+		return true
+	case "false", "no", "0", "f", "n":
+		return false
+	default:
+		return false
+	}
+}
+
 func (s *secretFetchStore) getEnv(key string) (string, bool) {
 	// If the key ends with `_SECURE` and external SecretManager is provided, fetch from it.
 	if strings.HasSuffix(key, "_SECURE") && s.extSecretManager != nil {

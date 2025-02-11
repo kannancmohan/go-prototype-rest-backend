@@ -28,6 +28,7 @@ type EnvVar struct {
 	AppKafkaProdTopic               string
 	ElasticHost                     string
 	ElasticIndexName                string
+	AutoCreateMissingElasticIndex   bool
 }
 
 // string representation to hide sensitive fields.
@@ -57,5 +58,6 @@ func initEnvVar(sec store.SecretFetchStore) *EnvVar {
 		AppKafkaProdTopic:               sec.GetEnvString("APP_API_KAFKA_TOPIC", "posts"),
 		ElasticHost:                     sec.GetEnvString("ELASTIC_HOST", "http://192.168.0.30:9200"),
 		ElasticIndexName:                sec.GetEnvString("ELASTIC_POST_INDEX_NAME", "posts"),
+		AutoCreateMissingElasticIndex:   sec.GetEnvBool("ELASTIC_AUTO_CREATE_POST_INDEX", "true"), // if set to true, app will creates the above index if its missing
 	}
 }
