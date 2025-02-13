@@ -91,6 +91,8 @@ func (s *appServer) start() error {
 		return nil
 	}
 
+	slog.Info("server started and listing for events")
+
 	for {
 		select {
 		case <-s.appStopChan: // on receiving stop signal
@@ -156,7 +158,7 @@ func newStoreResource(searchStore store.PostSearchIndexStore) storeResource {
 }
 
 func initStoreResources(ctx context.Context, infra *infraResource) (storeResource, error) {
-	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName)
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName, infra.env.AutoCreateMissingElasticIndex)
 	if err != nil {
 		return storeResource{}, fmt.Errorf("error init PostSearchIndexStore: %w", err)
 	}

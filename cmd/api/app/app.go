@@ -169,7 +169,7 @@ func initStoreResources(ctx context.Context, infra *infraResource) (storeResourc
 	cachedPStore := redis_cache.NewPostStore(infra.redis, pStore, infra.env.AppRedisCacheExpirationDuration)
 	cachedUStore := redis_cache.NewUserStore(infra.redis, uStore, infra.env.AppRedisCacheExpirationDuration)
 
-	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName)
+	searchStore, err := elasticsearch.NewPostSearchIndexStore(ctx, infra.elasticsearch, infra.env.ElasticIndexName, infra.env.AutoCreateMissingElasticIndex)
 	if err != nil {
 		return storeResource{}, fmt.Errorf("error init PostSearchIndexStore: %w", err)
 	}

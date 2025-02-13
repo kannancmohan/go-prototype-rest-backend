@@ -21,11 +21,17 @@ type postSearchIndexStore struct {
 	index  string
 }
 
-func NewPostSearchIndexStore(ctx context.Context, client *esv8.Client, index string) (*postSearchIndexStore, error) {
+func NewPostSearchIndexStore(ctx context.Context, client *esv8.Client, index string, autoCreateIndex bool) (*postSearchIndexStore, error) {
 
-	err := ensureIndexExists(ctx, client, index)
+	err := checkElasticIndexExists(ctx, client, index)
 	if err != nil {
-		return nil, common.WrapErrorf(err, common.ErrorCodeUnknown, "error ensuring index exists")
+		if autoCreateIndex {
+			if err := createIndexWithMapping(ctx, client, index); err != nil && !isResourceAlreadyExistsError(err) {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
 	return &postSearchIndexStore{
@@ -210,7 +216,7 @@ func (p *postSearchIndexStore) Search(ctx context.Context, args store.PostSearch
 
 }
 
-func ensureIndexExists(ctx context.Context, client *esv8.Client, index string) error {
+func checkElasticIndexExists(ctx context.Context, client *esv8.Client, index string) error {
 	resp, err := esv8api.IndicesExistsRequest{
 		Index: []string{index},
 	}.Do(ctx, client)
@@ -221,14 +227,10 @@ func ensureIndexExists(ctx context.Context, client *esv8.Client, index string) e
 	defer resp.Body.Close()
 
 	if resp.IsError() {
-		// If index does not exist, create it with proper mapping
 		if resp.StatusCode == http.StatusNotFound {
-			if err := createIndexWithMapping(ctx, client, index); err != nil && !isResourceAlreadyExistsError(err) {
-				return err
-			}
-		} else {
-			return common.NewErrorf(common.ErrorCodeUnknown, "error checking if index exists: %s", resp.String())
+			return common.NewErrorf(common.ErrorCodeNotFound, "index %s does not exist", index)
 		}
+		return common.NewErrorf(common.ErrorCodeUnknown, "error checking if index exists: %s", resp.String())
 	}
 	return nil
 }
