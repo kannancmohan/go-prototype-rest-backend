@@ -163,7 +163,7 @@ func TestSearchPostsEndpoints(t *testing.T) {
 		Method:  "POST",
 		Path:    "/api/v1/posts",
 		Headers: map[string]string{"Content-Type": "application/json"},
-		Body:    map[string]interface{}{"user_id": user.ID, "title": "e2e-searchposttest-title01", "content": "e2e searchposttest content01", "tags": []string{"e2e_test", "searchposttest01"}},
+		Body:    map[string]interface{}{"user_id": user.ID, "title": "searchposttest_title", "content": "searchposttest_content", "tags": []string{"e2e_test", "searchposttest01"}},
 	})
 	if err != nil {
 		t.Fatalf("failed to create test post: %v", err)
@@ -351,7 +351,14 @@ func setupTestInstanceElasticsearch(ctx context.Context) (testutils.InfraSetupCl
 		return nil, err
 	}
 	instance := tc_testutils.NewTestElasticsearchContainer()
-	container, cntCleanupFunc, err := instance.CreateElasticsearchTestContainer("")
+	indexMappings := map[string]interface{}{
+		elasticsearchIndexerName: map[string]interface{}{
+			"properties": map[string]interface{}{
+				"created_at": map[string]interface{}{"type": "date", "ignore_malformed": true},
+			},
+		},
+	}
+	container, cntCleanupFunc, err := instance.CreateElasticsearchTestContainer("", indexMappings)
 	if err != nil {
 		return cntCleanupFunc, err
 	}
@@ -414,10 +421,13 @@ func startApiApp(ctx context.Context) (testutils.AppSetupFuncResponse, error) {
 	os.Setenv("APP_API_PORT", port)
 	os.Setenv("APP_API_KAFKA_TOPIC", kafkaTopic)
 	os.Setenv("APP_API_DB_SCHEMA_NAME", dbSchemaName)
+	os.Setenv("ELASTIC_POST_INDEX_NAME", elasticsearchIndexerName)
+	os.Setenv("ELASTIC_AUTO_CREATE_POST_INDEX", "true")
 	defer func() {
 		os.Unsetenv("APP_API_PORT")
 		os.Unsetenv("APP_API_KAFKA_TOPIC")
 		os.Unsetenv("APP_API_DB_SCHEMA_NAME")
+		os.Unsetenv("ELASTIC_POST_INDEX_NAME")
 	}()
 
 	// Start the application in a goroutine
@@ -457,9 +467,12 @@ func startSearchIndexerApp(ctx context.Context) (testutils.AppSetupFuncResponse,
 	}
 	os.Setenv("APP_SEARCH_INDEXER_KAFKA_TOPIC", kafkaTopic)
 	os.Setenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID", kafkaConsumerGroupId)
+	os.Setenv("ELASTIC_POST_INDEX_NAME", elasticsearchIndexerName)
+	os.Setenv("ELASTIC_AUTO_CREATE_POST_INDEX", "true")
 	defer func() {
 		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_TOPIC")
 		os.Unsetenv("APP_SEARCH_INDEXER_KAFKA_CONSUMER_GROUP_ID")
+		os.Unsetenv("ELASTIC_POST_INDEX_NAME")
 	}()
 
 	errChan := make(chan error, 2)
