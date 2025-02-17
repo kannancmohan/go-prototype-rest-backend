@@ -83,8 +83,8 @@ pkgs.mkShellNoCC {
                 
                 ## Set testcontainers env variables
                 export TESTCONTAINERS_HOST_OVERRIDE=$sshIp
-                #export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
-                export TESTCONTAINERS_RYUK_DISABLED=true # disabling ryuk for now. Reason: ryuk port binding is failing for some reason
+                export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
+                #export TESTCONTAINERS_RYUK_DISABLED=true # disabling ryuk for now. Reason: ryuk port binding is failing for some reason
                 
             else
                 echo "Invalid remoteDockerHost format. Expected 'ssh://<username>@<ip>'."

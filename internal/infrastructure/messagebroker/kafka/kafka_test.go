@@ -26,22 +26,23 @@ var (
 
 func TestMain(m *testing.M) {
 	var err error
+	ctx := context.Background()
 	pgTest := tc_testutils.NewTestKafkaContainer(kafkaClusterId)
-	container, cleanupFunc, err := pgTest.CreateKafkaTestContainer(context.Background())
+	container, cleanupFunc, err := pgTest.CreateKafkaTestContainer(ctx)
 	if err != nil {
 		log.Fatalf("Failed to start kafka TestContainer: %v", err)
 	}
-	broker, err := pgTest.GetKafkaBrokerAddress(container)
+	addresses, err := container.Brokers(ctx)
 	if err != nil {
-		log.Fatalf("Failed to get kafka broker: %v", err)
+		log.Fatalf("Failed to get kafka brokers: %v", err)
 	}
 
-	producer, err = tc_testutils.CreateKafkaProducer(broker)
+	producer, err = tc_testutils.CreateKafkaProducer(addresses[0])
 	if err != nil {
 		log.Fatalf("failed to create Kafka producer: %v", err)
 	}
 
-	consumer, err = tc_testutils.CreateKafkaConsumer(broker, "test-group", []string{testTopic})
+	consumer, err = tc_testutils.CreateKafkaConsumer(addresses[0], "test-group", []string{testTopic})
 	if err != nil {
 		log.Fatalf("failed to create Kafka consumer: %v", err)
 	}
@@ -72,7 +73,7 @@ func TestPostMessageBrokerStore_Created(t *testing.T) {
 		expErr    error
 	}{
 		{
-			name:      "success",
+			name:      "post created - success",
 			eventType: "posts.event.created",
 			event: model.Post{
 				ID:      1,
@@ -93,6 +94,67 @@ func TestPostMessageBrokerStore_Created(t *testing.T) {
 				t.Error("failed to publish Created event", err.Error())
 			}
 			tc_testutils.VerifyKafkaMessage(t, consumer, tc.eventType, tc.event)
+		})
+	}
+}
+
+func TestPostMessageBrokerStore_Updated(t *testing.T) {
+	testCases := []struct {
+		name      string
+		eventType string
+		event     model.Post
+		expErr    error
+	}{
+		{
+			name:      "post updated - success",
+			eventType: "posts.event.updated",
+			event: model.Post{
+				ID:      1,
+				Title:   "test-title2",
+				Content: "test-content2",
+				UserID:  1,
+			},
+		},
+	}
+
+	msgStore := infrastructure_kafka.NewPostMessageBrokerStore(producer, testTopic)
+	ctx := context.Background()
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := msgStore.Updated(ctx, tc.event)
+			if err != nil {
+				t.Error("failed to publish Updated event", err.Error())
+			}
+			tc_testutils.VerifyKafkaMessage(t, consumer, tc.eventType, tc.event)
+		})
+	}
+}
+
+func TestPostMessageBrokerStore_Deleted(t *testing.T) {
+	testCases := []struct {
+		name      string
+		eventType string
+		postID    int64
+		expErr    error
+	}{
+		{
+			name:      "post deleted - success",
+			eventType: "posts.event.deleted",
+			postID:    1,
+		},
+	}
+
+	msgStore := infrastructure_kafka.NewPostMessageBrokerStore(producer, testTopic)
+	ctx := context.Background()
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := msgStore.Deleted(ctx, tc.postID)
+			if err != nil {
+				t.Error("failed to publish Deleted event", err.Error())
+			}
+			tc_testutils.VerifyKafkaMessage(t, consumer, tc.eventType, model.Post{ID: tc.postID})
 		})
 	}
 }

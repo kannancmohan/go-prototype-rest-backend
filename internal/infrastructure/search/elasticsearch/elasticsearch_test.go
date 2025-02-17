@@ -22,7 +22,7 @@ var testESClient *esv8.Client
 func TestMain(m *testing.M) {
 	var err error
 	pgTest := tc_testutils.NewTestElasticsearchContainer()
-	container, cleanupFunc, err := pgTest.CreateElasticsearchTestContainer("")
+	container, cleanupFunc, err := pgTest.CreateElasticsearchTestContainer("", nil)
 	if err != nil {
 		log.Fatalf("Failed to start elasticsearch TestContainer: %v", err)
 	}
@@ -61,7 +61,7 @@ func TestPostSearchIndexStore_Index(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index")
+	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index", true)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -101,7 +101,7 @@ func TestPostSearchIndexStore_Delete(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index")
+	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index", true)
 
 	// add test data to elasticsearch
 	err := store.Index(ctx, model.Post{
@@ -161,7 +161,7 @@ func TestPostSearchIndexStore_Search(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index")
+	store, _ := elasticsearch.NewPostSearchIndexStore(ctx, testESClient, "test_posts_index", true)
 
 	// add two test data to elasticsearch
 	err := store.Index(ctx, model.Post{
@@ -171,6 +171,9 @@ func TestPostSearchIndexStore_Search(t *testing.T) {
 		Tags:    []string{"tag_common", "tag1"},
 		UserID:  100,
 	})
+	if err != nil {
+		t.Errorf("Adding test data for search index failed. Received error %v", err)
+	}
 	err = store.Index(ctx, model.Post{
 		ID:      4321,
 		Content: "test-content-4321",
@@ -178,7 +181,6 @@ func TestPostSearchIndexStore_Search(t *testing.T) {
 		Tags:    []string{"tag_common", "tag2"},
 		UserID:  100,
 	})
-
 	if err != nil {
 		t.Errorf("Adding test data for search index failed. Received error %v", err)
 	}
